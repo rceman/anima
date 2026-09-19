@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .biomechanics import analyze_body_kinematics
 from .constraints import normalize_clip, validate_clip
 from .dynamics import analyze_weapon_dynamics
 from .handoff import imagegen_prompt
@@ -34,7 +35,10 @@ def compile_motion(
         encoding="utf-8",
     )
 
-    dynamics_report = analyze_weapon_dynamics(normalized)
+    dynamics_report = {
+        "weapon": analyze_weapon_dynamics(normalized),
+        "body": analyze_body_kinematics(normalized),
+    }
     (output / "dynamics.json").write_text(
         json.dumps(dynamics_report, indent=2) + "\n",
         encoding="utf-8",
