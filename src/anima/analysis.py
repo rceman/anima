@@ -16,12 +16,14 @@ def analyze_motion(clip: MotionClip) -> dict[str, Any]:
     weapon = analyze_weapon_dynamics(clip)
     strength = analyze_arm_strength(clip, weapon)
     system = analyze_system_dynamics(clip, body, weapon)
+    coordination = analyze_coordination(clip, body, weapon)
 
     dynamics = {
         "body": body,
         "weapon": weapon,
         "strength": strength,
         "system": system,
+        "coordination": coordination,
     }
 
     return {
