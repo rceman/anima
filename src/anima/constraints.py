@@ -107,6 +107,7 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
     rest = RestGeometry.from_frame(clip.frames[0])
     normalized: list[FramePose] = []
     previous_mids: dict[str, Vec2] = {}
+    contact_anchors: dict[str, Vec2] = {}
 
     for source in clip.frames:
         frame = source
@@ -160,15 +161,16 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
 
             foot = joints[foot_name]
             if frame.contacts.get(foot_name):
-                foot = Vec2(foot.x, clip.ground_y)
-                foot = clamp_target_to_horizontal_reach(
-                    joints[hip_name],
-                    foot,
-                    rest.bone_lengths[thigh_name],
-                    rest.bone_lengths[shin_name],
-                )
+                # A planted foot is a world-space contact, not merely a Y
+                # constraint. Keep the same X/Y anchor for the full contiguous
+                # contact phase to prevent skating.
+                if foot_name not in contact_anchors:
+                    contact_anchors[foot_name] = Vec2(foot.x, clip.ground_y)
+                foot = contact_anchors[foot_name]
+            else:
+                contact_anchors.pop(foot_name, None)
 
-            knee, solved_foot, _ = solve_two_bone(
+            knee, solved_foot, reachable = solve_two_bone(
                 joints[hip_name],
                 foot,
                 rest.bone_lengths[thigh_name],
@@ -177,6 +179,10 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
                 previous_mid=previous_mids.get(knee_name),
             )
             joints[knee_name] = knee
+            # Preserve hard world-space contact when reachable. If an authored
+            # root/hip position makes the planted foot unreachable, the IK
+            # solver returns its closest reachable point and validation exposes
+            # the resulting contact error instead of silently moving the foot.
             joints[foot_name] = solved_foot
             previous_mids[knee_name] = knee
 
