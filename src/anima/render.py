@@ -34,6 +34,16 @@ CONTROL = {
     "body": "#DAD3B5",
     "ground": "#626E78",
 }
+SEMANTIC_LAYERS = (
+    "head",
+    "torso",
+    "left_arm",
+    "right_arm",
+    "left_leg",
+    "right_leg",
+    "weapon",
+)
+
 PARTS = {
     "background": "#1E252A",
     "ground": "#626E78",
@@ -652,6 +662,105 @@ def render_inspection_frame(
     return image
 
 
+
+def render_semantic_layer(
+    clip: MotionClip,
+    frame: FramePose,
+    layer: str,
+) -> Image.Image:
+    """Render one RGBA semantic body layer on a transparent 128x128 canvas."""
+    if layer not in SEMANTIC_LAYERS:
+        raise ValueError(f"Unsupported semantic layer: {layer}")
+
+    image = Image.new("RGBA", (clip.width, clip.height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    white = (255, 255, 255, 255)
+
+    if layer == "head":
+        head = frame.joints.get("head")
+        if head:
+            x, y = _xy(head)
+            draw.ellipse([x - 5, y - 6, x + 5, y + 5], fill=white)
+
+    elif layer == "torso":
+        if all(
+            name in frame.joints
+            for name in ("shoulder_l", "shoulder_r", "hip_r", "hip_l")
+        ):
+            draw.polygon(
+                [
+                    _xy(frame.joints["shoulder_l"]),
+                    _xy(frame.joints["shoulder_r"]),
+                    _xy(frame.joints["hip_r"]),
+                    _xy(frame.joints["hip_l"]),
+                ],
+                fill=white,
+            )
+        if (
+            "head" in frame.joints
+            and {"shoulder_l", "shoulder_r"}.issubset(frame.joints)
+        ):
+            head = frame.joints["head"]
+            shoulder_mid = Vec2(
+                (frame.joints["shoulder_l"].x + frame.joints["shoulder_r"].x) * 0.5,
+                (frame.joints["shoulder_l"].y + frame.joints["shoulder_r"].y) * 0.5,
+            )
+            _line(
+                draw,
+                shoulder_mid,
+                Vec2(head.x, head.y + 5.0),
+                white,
+                5,
+            )
+
+    elif layer in {"left_arm", "right_arm"}:
+        side = "l" if layer == "left_arm" else "r"
+        names = (f"shoulder_{side}", f"elbow_{side}", f"hand_{side}")
+        if all(name in frame.joints for name in names):
+            _line(draw, frame.joints[names[0]], frame.joints[names[1]], white, 5)
+            _line(draw, frame.joints[names[1]], frame.joints[names[2]], white, 5)
+            for name in names[1:]:
+                x, y = _xy(frame.joints[name])
+                draw.ellipse([x - 3, y - 3, x + 3, y + 3], fill=white)
+
+    elif layer in {"left_leg", "right_leg"}:
+        side = "l" if layer == "left_leg" else "r"
+        names = (f"hip_{side}", f"knee_{side}", f"foot_{side}")
+        if all(name in frame.joints for name in names):
+            _line(draw, frame.joints[names[0]], frame.joints[names[1]], white, 5)
+            _line(draw, frame.joints[names[1]], frame.joints[names[2]], white, 5)
+            for name in names[1:]:
+                x, y = _xy(frame.joints[name])
+                draw.ellipse([x - 3, y - 3, x + 3, y + 3], fill=white)
+
+    elif layer == "weapon":
+        _line(draw, frame.weapon.grip_off, frame.weapon.tip, white, 3)
+        gx, gy = _xy(frame.weapon.grip_main)
+        draw.ellipse([gx - 2, gy - 2, gx + 2, gy + 2], fill=white)
+
+    return image
+
+
+def make_rgba_sheet(
+    frames: list[Image.Image],
+    columns: int = 4,
+) -> Image.Image:
+    if not frames:
+        raise ValueError("No frames")
+    width, height = frames[0].size
+    rows = (len(frames) + columns - 1) // columns
+    sheet = Image.new(
+        "RGBA",
+        (columns * width, rows * height),
+        (0, 0, 0, 0),
+    )
+    for index, frame in enumerate(frames):
+        x = (index % columns) * width
+        y = (index // columns) * height
+        sheet.alpha_composite(frame.convert("RGBA"), (x, y))
+    return sheet
+
+
 def make_sheet(
     frames: list[Image.Image],
     columns: int = 4,
@@ -718,10 +827,14 @@ def export_render_set(
     control_dir = output / "control_frames"
     parts_dir = output / "parts_frames"
     inspect_dir = output / "inspection_frames"
+    layers_dir = output / "layers"
     debug_dir.mkdir(parents=True, exist_ok=True)
     control_dir.mkdir(parents=True, exist_ok=True)
     parts_dir.mkdir(parents=True, exist_ok=True)
     inspect_dir.mkdir(parents=True, exist_ok=True)
+    layers_dir.mkdir(parents=True, exist_ok=True)
+    for layer in SEMANTIC_LAYERS:
+        (layers_dir / layer).mkdir(parents=True, exist_ok=True)
 
     body_report = analyze_body_kinematics(clip)
     weapon_report = analyze_weapon_dynamics(clip)
@@ -734,6 +847,10 @@ def export_render_set(
     control: list[Image.Image] = []
     parts: list[Image.Image] = []
     inspection: list[Image.Image] = []
+    semantic_layers: dict[str, list[Image.Image]] = {
+        layer: []
+        for layer in SEMANTIC_LAYERS
+    }
     for index, frame in enumerate(clip.frames):
         debug_frame = render_debug_frame(
             clip,
@@ -761,6 +878,12 @@ def export_render_set(
         control_frame.save(control_dir / f"frame_{index:02d}.png")
         parts_frame.save(parts_dir / f"frame_{index:02d}.png")
         inspection_frame.save(inspect_dir / f"frame_{index:02d}.png")
+        for layer in SEMANTIC_LAYERS:
+            layer_frame = render_semantic_layer(clip, frame, layer)
+            layer_frame.save(
+                layers_dir / layer / f"frame_{index:02d}.png"
+            )
+            semantic_layers[layer].append(layer_frame)
         debug.append(debug_frame)
         control.append(control_frame)
         parts.append(parts_frame)
@@ -772,6 +895,11 @@ def export_render_set(
     debug_sheet.save(output / "debug_sheet.png")
     control_sheet.save(output / "control_sheet.png")
     parts_sheet.save(output / "parts_sheet.png")
+    for layer, layer_frames in semantic_layers.items():
+        make_rgba_sheet(
+            layer_frames,
+            columns=columns,
+        ).save(layers_dir / f"{layer}_sheet.png")
 
     durations = _gif_durations_ms(clip)
 
