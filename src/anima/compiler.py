@@ -4,8 +4,10 @@ import json
 from pathlib import Path
 
 from .constraints import normalize_clip, validate_clip
+from .handoff import imagegen_prompt
 from .model import MotionClip
 from .render import export_render_set
+from .timeline import densify_clip
 
 
 def compile_motion(
@@ -14,10 +16,11 @@ def compile_motion(
     scale: int = 4,
 ) -> bool:
     source = MotionClip.load(input_path)
-    normalized = normalize_clip(source)
+    dense = densify_clip(source)
+    normalized = normalize_clip(dense)
+
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
-
     normalized.save(output / "motion.normalized.json")
 
     report = validate_clip(normalized)
@@ -31,4 +34,8 @@ def compile_motion(
     )
 
     export_render_set(normalized, output, scale=scale)
+    (output / "imagegen_prompt.txt").write_text(
+        imagegen_prompt(normalized),
+        encoding="utf-8",
+    )
     return report.ok
