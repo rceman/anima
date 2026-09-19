@@ -211,6 +211,52 @@ def _system_scale(
     return required, reasons
 
 
+
+def _segment_recommendations(
+    clip: MotionClip,
+    reasons: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    anchors = [
+        frame
+        for frame in clip.frames
+        if frame.label
+    ]
+    if len(anchors) < 2:
+        return []
+
+    segments: list[dict[str, Any]] = []
+    for left, right in zip(anchors, anchors[1:]):
+        local_reasons = [
+            reason
+            for reason in reasons
+            if reason.get("frame") is not None
+            and left.frame < int(reason["frame"]) <= right.frame
+        ]
+        scale = max(
+            [1.0] + [float(reason.get("time_scale", 1.0)) for reason in local_reasons]
+        )
+        span = right.frame - left.frame
+        duration = span / clip.fps
+        segments.append(
+            {
+                "from_frame": left.frame,
+                "to_frame": right.frame,
+                "from_label": left.label,
+                "to_label": right.label,
+                "current_frame_span": span,
+                "current_duration_s": duration,
+                "recommended_time_scale": scale,
+                "recommended_frame_span_same_fps": max(
+                    span,
+                    math.ceil(span * scale),
+                ),
+                "recommended_duration_s": duration * scale,
+                "reasons": local_reasons,
+            }
+        )
+    return segments
+
+
 def recommend_timing(
     clip: MotionClip,
     dynamics_report: dict[str, Any],
@@ -238,6 +284,8 @@ def recommend_timing(
         else frame_count
     )
 
+    reasons = weapon_reasons + body_reasons + system_reasons
+
     return {
         "current": {
             "fps": clip.fps,
@@ -255,5 +303,6 @@ def recommend_timing(
             "body_time_scale": body_scale,
             "system_time_scale": system_scale,
         },
-        "reasons": weapon_reasons + body_reasons + system_reasons,
+        "reasons": reasons,
+        "segments": _segment_recommendations(clip, reasons),
     }
