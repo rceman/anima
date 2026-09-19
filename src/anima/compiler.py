@@ -3,16 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .biomechanics import analyze_body_kinematics
+from .analysis import analyze_motion
 from .constraints import normalize_clip, validate_clip
-from .dynamics import analyze_weapon_dynamics
 from .handoff import imagegen_prompt
 from .model import MotionClip
-from .physics_policy import evaluate_physics
 from .render import export_render_set
-from .retiming import recommend_timing
-from .strength import analyze_arm_strength
-from .system_dynamics import analyze_system_dynamics
 from .timeline import densify_clip
 
 
@@ -40,30 +35,19 @@ def compile_motion(
         encoding="utf-8",
     )
 
-    body_report = analyze_body_kinematics(normalized)
-    weapon_report = analyze_weapon_dynamics(normalized)
-    dynamics_report = {
-        "weapon": weapon_report,
-        "body": body_report,
-        "strength": analyze_arm_strength(normalized, weapon_report),
-        "system": analyze_system_dynamics(
-            normalized,
-            body_report,
-            weapon_report,
-        ),
-    }
+    analysis = analyze_motion(normalized)
+    dynamics_report = analysis["dynamics"]
+    physics_report = analysis["physics_validation"]
+    timing_report = analysis["timing_recommendation"]
+
     (output / "dynamics.json").write_text(
         json.dumps(dynamics_report, indent=2) + "\n",
         encoding="utf-8",
     )
-
-    physics_report = evaluate_physics(dynamics_report)
     (output / "physics_validation.json").write_text(
         json.dumps(physics_report, indent=2) + "\n",
         encoding="utf-8",
     )
-
-    timing_report = recommend_timing(normalized, dynamics_report)
     (output / "timing_recommendation.json").write_text(
         json.dumps(timing_report, indent=2) + "\n",
         encoding="utf-8",
