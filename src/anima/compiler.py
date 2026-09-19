@@ -6,6 +6,7 @@ from pathlib import Path
 from .analysis import analyze_motion
 from .constraints import normalize_clip, validate_clip
 from .handoff import imagegen_prompt
+from .manifest import build_animation_manifest
 from .model import MotionClip
 from .render import export_render_set
 from .retime_apply import auto_retime
@@ -79,6 +80,15 @@ def compile_motion(
     )
 
     export_render_set(normalized, output, scale=scale)
+    (output / "animation_manifest.json").write_text(
+        json.dumps(
+            build_animation_manifest(normalized, columns=4),
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     (output / "imagegen_prompt.txt").write_text(
         imagegen_prompt(normalized),
         encoding="utf-8",
