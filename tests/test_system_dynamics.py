@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from anima.model import MotionClip
 from anima.system_dynamics import analyze_system_dynamics
 
@@ -9,7 +11,10 @@ def test_system_com_is_mass_weighted_between_body_and_weapon():
         ground_y=108,
         fps=10,
         rig="test",
-        frames=[object(), object()],
+        frames=[
+            SimpleNamespace(frame=0, label=None),
+            SimpleNamespace(frame=1, label=None),
+        ],
     )
 
     body = {
@@ -46,7 +51,7 @@ def test_system_com_outside_support_is_reported():
         ground_y=108,
         fps=10,
         rig="test",
-        frames=[object()],
+        frames=[SimpleNamespace(frame=0, label=None)],
     )
     body = {
         "profile": {
