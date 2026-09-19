@@ -857,7 +857,7 @@
       "effective_length_m": 0.92,
       "inertia_factor": 0.33,
       "damping_nm_per_rad_s": 0.8,
-      "max_braking_torque_nm": 24,
+      "max_braking_torque_nm": 40,
       "impact_frame": 4,
       "collision": false,
       "center_of_mass_fraction": 0.45,
