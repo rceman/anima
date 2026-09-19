@@ -85,6 +85,13 @@ def _interpolate_pose(
     angle_b = _unwrap_near(_weapon_angle(b), angle_a)
     angle = _mix(angle_a, angle_b, t)
 
+    raw_t = (frame_no - a.frame) / max(b.frame - a.frame, 1)
+    time_s = (
+        _mix(float(a.time_s), float(b.time_s), raw_t)
+        if a.time_s is not None and b.time_s is not None
+        else None
+    )
+
     return FramePose(
         frame=frame_no,
         root=_mix_vec(a.root, b.root, t),
@@ -93,6 +100,7 @@ def _interpolate_pose(
         contacts=dict(contact_source.contacts),
         ik_poles=ik_poles,
         label=None,
+        time_s=time_s,
     )
 
 
@@ -172,13 +180,30 @@ def _interpolate_pose_hermite(
     heavy weapon: anticipation, acceleration, impact and follow-through should
     form one continuous trajectory.
     """
-    t1 = float(left.frame)
-    t2 = float(right.frame)
+    explicit_time = left.time_s is not None and right.time_s is not None
+    t1 = float(left.time_s) if explicit_time else float(left.frame)
+    t2 = float(right.time_s) if explicit_time else float(right.frame)
     segment_dt = t2 - t1
-    u = (frame_no - t1) / segment_dt
+    raw_frame_u = (frame_no - left.frame) / max(right.frame - left.frame, 1)
+    current_t = _mix(t1, t2, raw_frame_u)
+    u = (current_t - t1) / segment_dt
 
-    t0 = float(previous.frame) if previous else None
-    t3 = float(following.frame) if following else None
+    if previous:
+        t0 = (
+            float(previous.time_s)
+            if explicit_time and previous.time_s is not None
+            else float(previous.frame)
+        )
+    else:
+        t0 = None
+    if following:
+        t3 = (
+            float(following.time_s)
+            if explicit_time and following.time_s is not None
+            else float(following.frame)
+        )
+    else:
+        t3 = None
 
     names = left.joints.keys() & right.joints.keys()
     joints: dict[str, Vec2] = {}
@@ -252,6 +277,8 @@ def _interpolate_pose_hermite(
 
     contact_source = left if u < 0.5 else right
 
+    time_s = current_t if explicit_time else None
+
     return FramePose(
         frame=frame_no,
         root=root,
@@ -260,6 +287,7 @@ def _interpolate_pose_hermite(
         contacts=dict(contact_source.contacts),
         ik_poles=ik_poles,
         label=None,
+        time_s=time_s,
     )
 
 
@@ -275,6 +303,8 @@ def densify_clip(
     if len(clip.frames) < 2:
         return clip
 
+    # Validate explicit timestamp mode before interpolating.
+    clip.times_s()
     keyframes = sorted(clip.frames, key=lambda frame: frame.frame)
     if len({frame.frame for frame in keyframes}) != len(keyframes):
         raise ValueError("Duplicate keyframe numbers are not allowed")
