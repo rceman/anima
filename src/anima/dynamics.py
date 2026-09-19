@@ -4,7 +4,8 @@ from dataclasses import dataclass, asdict
 import math
 from typing import Any
 
-from .model import FramePose, MotionClip
+from .kinematics import vec_derivative
+from .model import FramePose, MotionClip, Vec2
 
 
 @dataclass(frozen=True)
@@ -12,8 +13,10 @@ class WeaponDynamicsProfile:
     mass_kg: float = 1.3
     effective_length_m: float = 0.9
     inertia_factor: float = 0.33
+    center_of_mass_fraction: float = 0.45
     damping_nm_per_rad_s: float = 0.8
     max_braking_torque_nm: float = 24.0
+    max_handle_force_n: float = 1200.0
     impact_frame: int | None = None
     collision: bool = False
 
@@ -33,8 +36,10 @@ class WeaponDynamicsProfile:
             mass_kg=float(raw.get("mass_kg", 1.3)),
             effective_length_m=float(raw.get("effective_length_m", 0.9)),
             inertia_factor=float(raw.get("inertia_factor", 0.33)),
+            center_of_mass_fraction=float(raw.get("center_of_mass_fraction", 0.45)),
             damping_nm_per_rad_s=float(raw.get("damping_nm_per_rad_s", 0.8)),
             max_braking_torque_nm=float(raw.get("max_braking_torque_nm", 24.0)),
+            max_handle_force_n=float(raw.get("max_handle_force_n", 1200.0)),
             impact_frame=(
                 int(raw["impact_frame"])
                 if raw.get("impact_frame") is not None
@@ -65,12 +70,19 @@ def unwrap_angles(values: list[float]) -> list[float]:
     return out
 
 
-def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
-    """Produce a physically-inspired diagnostic report.
+def _weapon_com_px(frame: FramePose, fraction: float) -> Vec2:
+    return frame.weapon.grip_main + (
+        frame.weapon.tip - frame.weapon.grip_main
+    ) * fraction
 
-    This does not claim full rigid-body simulation. It provides consistent
-    kinematic/torque diagnostics so an authored swing cannot arbitrarily stop
-    a heavy weapon without that discontinuity becoming visible.
+
+def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
+    """Analyze rigid-weapon rotation, translation, force, power and inertia.
+
+    This is a planar rigid-body approximation. It intentionally captures the
+    quantities that make animation read as physical: angular velocity,
+    acceleration, torque, translational acceleration, handle reaction force,
+    energy and follow-through.
     """
     profile = WeaponDynamicsProfile.from_clip(clip)
     dt = 1.0 / clip.fps
@@ -79,7 +91,7 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
     omega: list[float] = [0.0] * len(angles)
     alpha: list[float] = [0.0] * len(angles)
     torque: list[float] = [0.0] * len(angles)
-    energy: list[float] = [0.0] * len(angles)
+    rotational_energy: list[float] = [0.0] * len(angles)
 
     for i in range(1, len(angles)):
         omega[i] = (angles[i] - angles[i - 1]) / dt
@@ -87,11 +99,66 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
     inertia = profile.inertia_kg_m2
     for i in range(1, len(angles)):
         alpha[i] = (omega[i] - omega[i - 1]) / dt
-        # Torque required to both change angular speed and overcome damping.
         torque[i] = inertia * alpha[i] + profile.damping_nm_per_rad_s * omega[i]
-        energy[i] = 0.5 * inertia * omega[i] * omega[i]
+        rotational_energy[i] = 0.5 * inertia * omega[i] * omega[i]
+
+    body_raw = clip.dynamics.get("body", {})
+    ppm = max(float(body_raw.get("pixels_per_meter", 40.0)), 1e-9)
+    gravity = float(body_raw.get("gravity_m_s2", 9.81))
+
+    com_px = [
+        _weapon_com_px(frame, profile.center_of_mass_fraction)
+        for frame in clip.frames
+    ]
+    com_m = [Vec2(point.x / ppm, point.y / ppm) for point in com_px]
+    com_velocity = vec_derivative(com_m, dt)
+    com_acceleration = vec_derivative(com_velocity, dt)
+    com_jerk = vec_derivative(com_acceleration, dt)
+
+    handle_force: list[Vec2] = []
+    reaction_force: list[Vec2] = []
+    translational_energy: list[float] = []
+    total_energy: list[float] = []
+    mechanical_power: list[float] = []
+
+    for i in range(len(clip.frames)):
+        # Screen Y grows downward. Gravity is +Y. Force that the hands must
+        # apply to the weapon: m*a - m*g.
+        force = Vec2(
+            profile.mass_kg * com_acceleration[i].x,
+            profile.mass_kg * (com_acceleration[i].y - gravity),
+        )
+        reaction = force * -1.0
+        handle_force.append(force)
+        reaction_force.append(reaction)
+
+        speed = com_velocity[i].length()
+        translational = 0.5 * profile.mass_kg * speed * speed
+        translational_energy.append(translational)
+        total_energy.append(translational + rotational_energy[i])
+
+        translational_power = (
+            force.x * com_velocity[i].x
+            + force.y * com_velocity[i].y
+        )
+        rotational_power = torque[i] * omega[i]
+        mechanical_power.append(translational_power + rotational_power)
 
     warnings: list[dict[str, Any]] = []
+
+    for i, frame in enumerate(clip.frames):
+        force_mag = handle_force[i].length()
+        if force_mag > profile.max_handle_force_n:
+            warnings.append(
+                {
+                    "code": "handle_force_exceeded",
+                    "frame": frame.frame,
+                    "message": (
+                        f"Estimated handle force {force_mag:.1f} N exceeds "
+                        f"configured {profile.max_handle_force_n:.1f} N."
+                    ),
+                }
+            )
 
     impact_index: int | None = None
     if profile.impact_frame is not None:
@@ -123,7 +190,8 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
             "impact_frame": profile.impact_frame,
             "impact_angular_velocity_rad_s": impact_omega,
             "impact_angular_velocity_deg_s": math.degrees(impact_omega),
-            "impact_rotational_energy_j": energy[impact_index],
+            "impact_rotational_energy_j": rotational_energy[impact_index],
+            "impact_total_kinetic_energy_j": total_energy[impact_index],
             "minimum_stop_time_s_at_max_braking": min_stop_time,
             "minimum_follow_through_deg_at_max_braking": math.degrees(min_stop_angle),
         }
@@ -184,7 +252,17 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
                 "angular_velocity_deg_s": math.degrees(omega[i]),
                 "angular_acceleration_deg_s2": math.degrees(alpha[i]),
                 "estimated_torque_nm": torque[i],
-                "rotational_energy_j": energy[i],
+                "rotational_energy_j": rotational_energy[i],
+                "weapon_com_px": com_px[i].as_list(),
+                "com_velocity_m_s": com_velocity[i].as_list(),
+                "com_acceleration_m_s2": com_acceleration[i].as_list(),
+                "com_jerk_m_s3": com_jerk[i].as_list(),
+                "handle_force_on_weapon_n": handle_force[i].as_list(),
+                "handle_force_magnitude_n": handle_force[i].length(),
+                "reaction_force_on_body_n": reaction_force[i].as_list(),
+                "translational_energy_j": translational_energy[i],
+                "total_kinetic_energy_j": total_energy[i],
+                "mechanical_power_w": mechanical_power[i],
             }
         )
 
