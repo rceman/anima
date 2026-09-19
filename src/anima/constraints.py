@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 
+from .contacts import GROUNDED, PLANTED, contact_mode, is_ground_contact
 from .model import FramePose, MotionClip, Vec2, WeaponPose
 from .rig import HUMANOID_BONES, RestGeometry
 
@@ -116,7 +117,7 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
         contact_feet = [
             name
             for name in ("foot_l", "foot_r")
-            if frame.contacts.get(name) and name in frame.joints
+            if is_ground_contact(frame.contacts.get(name)) and name in frame.joints
         ]
         if contact_feet:
             avg_y = sum(frame.joints[name].y for name in contact_feet) / len(contact_feet)
@@ -160,13 +161,24 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
                 continue
 
             foot = joints[foot_name]
-            if frame.contacts.get(foot_name):
-                # A planted foot is a world-space contact, not merely a Y
-                # constraint. Keep the same X/Y anchor for the full contiguous
-                # contact phase to prevent skating.
+            mode = contact_mode(frame.contacts.get(foot_name))
+            if mode == PLANTED:
+                # A planted foot is a world-space contact. Keep the same X/Y
+                # anchor for the full contiguous planted phase to prevent skating.
                 if foot_name not in contact_anchors:
                     contact_anchors[foot_name] = Vec2(foot.x, clip.ground_y)
                 foot = contact_anchors[foot_name]
+            elif mode == GROUNDED:
+                # Grounded permits authored horizontal sliding/pivoting, but
+                # never vertical lift. Clamp X only if the leg cannot reach.
+                contact_anchors.pop(foot_name, None)
+                foot = Vec2(foot.x, clip.ground_y)
+                foot = clamp_target_to_horizontal_reach(
+                    joints[hip_name],
+                    foot,
+                    rest.bone_lengths[thigh_name],
+                    rest.bone_lengths[shin_name],
+                )
             else:
                 contact_anchors.pop(foot_name, None)
 
@@ -221,7 +233,7 @@ def validate_clip(clip: MotionClip, tolerance: float = 0.75) -> ValidationReport
 
     for frame in clip.frames:
         for foot in ("foot_l", "foot_r"):
-            if frame.contacts.get(foot) and foot in frame.joints:
+            if is_ground_contact(frame.contacts.get(foot)) and foot in frame.joints:
                 delta = abs(frame.joints[foot].y - clip.ground_y)
                 if delta > tolerance:
                     issues.append(
