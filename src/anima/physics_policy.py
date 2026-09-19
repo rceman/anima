@@ -31,6 +31,9 @@ def evaluate_physics(dynamics_report: dict[str, Any]) -> dict[str, Any]:
     weapon_warnings = list(dynamics_report.get("weapon", {}).get("warnings", []))
     system_warnings = list(dynamics_report.get("system", {}).get("warnings", []))
     strength_warnings = list(dynamics_report.get("strength", {}).get("warnings", []))
+    coordination_warnings = list(
+        dynamics_report.get("coordination", {}).get("warnings", [])
+    )
 
     all_warnings = [
         {**warning, "domain": "body"} for warning in body_warnings
@@ -40,6 +43,8 @@ def evaluate_physics(dynamics_report: dict[str, Any]) -> dict[str, Any]:
         {**warning, "domain": "system"} for warning in system_warnings
     ] + [
         {**warning, "domain": "strength"} for warning in strength_warnings
+    ] + [
+        {**warning, "domain": "coordination"} for warning in coordination_warnings
     ]
 
     hard = [warning for warning in all_warnings if warning.get("code") in HARD_CODES]
