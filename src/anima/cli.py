@@ -8,6 +8,7 @@ from .analysis import analyze_motion
 from .compiler import compile_motion
 from .constraints import normalize_clip, validate_clip
 from .model import MotionClip
+from .retime_apply import auto_retime
 from .timeline import densify_clip
 
 
@@ -45,6 +46,44 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
     report = analyze_motion(clip)
     print(json.dumps(report, indent=2))
     return 0 if report["physics_validation"]["ok"] else 2
+
+
+
+def _cmd_retime(args: argparse.Namespace) -> int:
+    clip = MotionClip.load(args.input)
+    clip = densify_clip(clip)
+    if args.normalize:
+        clip = normalize_clip(clip)
+
+    retimed, history = auto_retime(
+        clip,
+        iterations=args.iterations,
+        tolerance=args.tolerance,
+        max_interval_scale=args.max_interval_scale,
+    )
+    retimed.save(args.output)
+
+    final = analyze_motion(retimed)
+    history_path = args.output.with_suffix(args.output.suffix + ".retime.json")
+    history_path.write_text(
+        json.dumps(
+            {
+                "history": history,
+                "final_physics_validation": final["physics_validation"],
+                "final_timing_recommendation": final["timing_recommendation"],
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    print(f"retimed: {args.output}")
+    print(f"report: {history_path}")
+    print(json.dumps(history[-1], indent=2))
+    if args.strict and not final["physics_validation"]["ok"]:
+        return 2
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -85,6 +124,23 @@ def build_parser() -> argparse.ArgumentParser:
     analyze_cmd.add_argument("input", type=Path)
     analyze_cmd.add_argument("--normalize", action="store_true")
     analyze_cmd.set_defaults(func=_cmd_analyze)
+
+    retime_cmd = sub.add_parser(
+        "retime",
+        help="Apply physics-informed phase timing without changing pose geometry",
+    )
+    retime_cmd.add_argument("input", type=Path)
+    retime_cmd.add_argument("--output", "-o", type=Path, required=True)
+    retime_cmd.add_argument("--normalize", action="store_true")
+    retime_cmd.add_argument("--iterations", type=int, default=3)
+    retime_cmd.add_argument("--tolerance", type=float, default=1.01)
+    retime_cmd.add_argument("--max-interval-scale", type=float, default=4.0)
+    retime_cmd.add_argument(
+        "--strict",
+        action="store_true",
+        help="Return failure if hard physics issues remain after retiming",
+    )
+    retime_cmd.set_defaults(func=_cmd_retime)
     return parser
 
 
