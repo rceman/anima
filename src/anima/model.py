@@ -72,7 +72,7 @@ class FramePose:
     root: Vec2
     joints: dict[str, Vec2]
     weapon: WeaponPose
-    contacts: dict[str, bool] = field(default_factory=dict)
+    contacts: dict[str, bool | str] = field(default_factory=dict)
     ik_poles: dict[str, Vec2] = field(default_factory=dict)
     label: str | None = None
 
@@ -83,7 +83,7 @@ class FramePose:
             root=Vec2.from_any(data["root"]),
             joints={name: Vec2.from_any(point) for name, point in data["joints"].items()},
             weapon=WeaponPose.from_dict(data["weapon"]),
-            contacts={k: bool(v) for k, v in data.get("contacts", {}).items()},
+            contacts=dict(data.get("contacts", {})),
             ik_poles={
                 name: Vec2.from_any(point)
                 for name, point in data.get("ik_poles", {}).items()
