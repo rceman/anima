@@ -19,6 +19,8 @@ The initial `humanoid_twohand_sword_v1` workflow enforces:
 - rigid sword length and grip spacing;
 - primary and secondary hands attached to the same weapon every frame;
 - two-bone IK for elbows and knees;
+- explicit IK pole targets and temporal bend continuity to prevent elbow/knee flips;
+- physically-inspired weapon inertia diagnostics for follow-through and braking;
 - fixed canvas bounds;
 - validation before a control sheet is considered usable.
 
@@ -76,6 +78,7 @@ Canonical outputs:
 ```text
 motion.normalized.json
 validation.json
+dynamics.json
 imagegen_prompt.txt
 
 debug_frames/          # exact canvas size: 128x128 in the example
@@ -88,8 +91,9 @@ control_sheet.png      # canonical grid, no scaling
 Preview-only outputs:
 
 ```text
-debug_preview.gif
+debug_preview.gif          # intentionally very large diagnostic animation
 control_preview.gif
+review_preview.gif         # debug skeleton + mannequin side-by-side
 debug_sheet.preview.png
 control_sheet.preview.png
 ```
@@ -109,6 +113,7 @@ anima validate examples/twohand_sword_slash/motion.json --normalize
 - fixed canvas and explicit ground Y;
 - root and named 2D joints;
 - per-frame foot-contact state;
+- optional elbow/knee IK pole targets;
 - primary/off-hand weapon grips;
 - sword tip;
 - sparse keyframe numbers;
@@ -117,6 +122,38 @@ anima validate examples/twohand_sword_slash/motion.json --normalize
 Keyframes do not need to be adjacent. If an author supplies frames `0`, `3`, and `7`, Anima fills frames `1`, `2`, `4`, `5`, and `6` using smoothstep interpolation before constraint solving. The interpolated positions are only proposals: the rig/IK layer still enforces the actual invariants afterward.
 
 The first frame defines the canonical limb lengths, sword length, and grip spacing.
+
+### IK realism
+
+Two-bone IK alone is not enough for believable animation because every two-bone chain has two mathematical solutions. Anima therefore supports per-joint **IK pole targets** and also carries the previous solved elbow/knee forward as a temporal continuity hint. This prevents an arm from suddenly changing which side it bends toward while the hands remain on the sword.
+
+In the debug animation, left limbs and right limbs use separate colorblind-safe colors plus different marker shapes. The debug preview is intentionally much larger than the final 128x128 art cell so elbow flips, foot drift, and root motion are easy to spot.
+
+### Inertia and follow-through
+
+Weapon motion is not treated as a sequence of unrelated angles. A motion clip can include a physical profile such as:
+
+```json
+{
+  "dynamics": {
+    "weapon": {
+      "mass_kg": 1.35,
+      "effective_length_m": 0.92,
+      "inertia_factor": 0.33,
+      "damping_nm_per_rad_s": 0.8,
+      "max_braking_torque_nm": 24.0,
+      "impact_frame": 4,
+      "collision": false
+    }
+  }
+}
+```
+
+Anima computes angular velocity, angular acceleration, estimated torque and rotational energy for every frame. At impact it also estimates the minimum stopping time and minimum follow-through angle permitted by the configured inertia and braking torque.
+
+This is deliberately **physically inspired rather than a full biomechanics simulator**. The important rule is that a heavy sword cannot change angular velocity arbitrarily. If a non-colliding swing reverses direction immediately, demands excessive braking torque, or stops with too little follow-through, the dynamics report flags it.
+
+Mass, effective length, inertia factor and braking torque are authoring parameters. Different weapons can therefore feel materially different without changing the rig architecture.
 
 The two-handed sword normalization order is dependency-driven:
 
@@ -180,16 +217,19 @@ Implemented:
 - rigid sword normalization;
 - hard two-handed attachment;
 - two-bone arm and leg IK;
+- explicit IK poles plus temporal bend-branch continuity;
 - planted-foot reach clamping while preserving the ground line;
 - geometry validation;
 - colorblind-safe debug rendering with redundant left/right marker shapes;
 - mannequin control rendering;
 - exact-size canonical PNG frame and spritesheet export;
 - separately scaled preview GIF/sheets;
+- enlarged color-coded debug GIF and side-by-side debug/control review GIF;
+- weapon inertia / torque / follow-through diagnostics;
 - generated ImageGen handoff prompt;
 - CLI;
 - tests;
 - GitHub Actions test/compile gate;
 - canonical two-handed sword example.
 
-Next work should focus on motion quality: per-segment easing, explicit weapon-arc helpers, planted-foot phase changes, root/center-of-mass constraints, and post-ImageGen comparison.
+Next work should focus on motion quality: per-segment easing, torque-shaped weapon arcs, planted-foot phase changes, root/center-of-mass transfer, shoulder/torso coupling, and post-ImageGen comparison.
