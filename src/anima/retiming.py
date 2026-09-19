@@ -134,6 +134,83 @@ def _body_scale(body: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
     return required, reasons
 
 
+def _system_scale(
+    system: dict[str, Any],
+    body: dict[str, Any],
+) -> tuple[float, list[dict[str, Any]]]:
+    body_profile = body.get("profile", {})
+    max_accel = float(body_profile.get("max_com_accel_m_s2", 0.0))
+    max_jerk = float(body_profile.get("max_com_jerk_m_s3", 0.0))
+    mu = float(system.get("profile", {}).get("friction_coefficient", 0.0))
+    gravity = float(system.get("profile", {}).get("gravity_m_s2", 9.81))
+
+    required = 1.0
+    reasons: list[dict[str, Any]] = []
+
+    for item in system.get("frames", []):
+        accel = item.get("system_com_acceleration_m_s2", [0.0, 0.0])
+        ax = float(accel[0])
+        ay = float(accel[1])
+        accel_mag = math.hypot(ax, ay)
+
+        if max_accel > 1e-9 and accel_mag > max_accel:
+            scale = math.sqrt(accel_mag / max_accel)
+            required = max(required, scale)
+            reasons.append(
+                {
+                    "domain": "system",
+                    "frame": item.get("frame"),
+                    "code": "system_acceleration_retime",
+                    "time_scale": scale,
+                    "message": (
+                        f"Person+weapon COM acceleration needs about "
+                        f"{scale:.2f}x more time."
+                    ),
+                }
+            )
+
+        jerk = item.get("system_com_jerk_m_s3", [0.0, 0.0])
+        jerk_mag = math.hypot(float(jerk[0]), float(jerk[1]))
+        if max_jerk > 1e-9 and jerk_mag > max_jerk:
+            scale = (jerk_mag / max_jerk) ** (1.0 / 3.0)
+            required = max(required, scale)
+            reasons.append(
+                {
+                    "domain": "system",
+                    "frame": item.get("frame"),
+                    "code": "system_jerk_retime",
+                    "time_scale": scale,
+                    "message": (
+                        f"Person+weapon COM jerk needs about {scale:.2f}x more time."
+                    ),
+                }
+            )
+
+        if (
+            item.get("ground_reaction_force") is not None
+            and mu > 1e-9
+            and gravity > 1e-9
+        ):
+            numerator = abs(ax) / mu + ay
+            if numerator > gravity:
+                scale = math.sqrt(max(numerator / gravity, 1.0))
+                required = max(required, scale)
+                reasons.append(
+                    {
+                        "domain": "system",
+                        "frame": item.get("frame"),
+                        "code": "system_friction_retime",
+                        "time_scale": scale,
+                        "message": (
+                            f"Person+weapon friction demand needs about "
+                            f"{scale:.2f}x more time."
+                        ),
+                    }
+                )
+
+    return required, reasons
+
+
 def recommend_timing(
     clip: MotionClip,
     dynamics_report: dict[str, Any],
@@ -145,7 +222,11 @@ def recommend_timing(
     """
     weapon_scale, weapon_reasons = _weapon_scale(dynamics_report.get("weapon", {}))
     body_scale, body_reasons = _body_scale(dynamics_report.get("body", {}))
-    scale = max(1.0, weapon_scale, body_scale)
+    system_scale, system_reasons = _system_scale(
+        dynamics_report.get("system", {}),
+        dynamics_report.get("body", {}),
+    )
+    scale = max(1.0, weapon_scale, body_scale, system_scale)
 
     frame_count = len(clip.frames)
     duration_s = (frame_count - 1) / clip.fps if frame_count > 1 else 0.0
@@ -172,6 +253,7 @@ def recommend_timing(
         "components": {
             "weapon_time_scale": weapon_scale,
             "body_time_scale": body_scale,
+            "system_time_scale": system_scale,
         },
-        "reasons": weapon_reasons + body_reasons,
+        "reasons": weapon_reasons + body_reasons + system_reasons,
     }
