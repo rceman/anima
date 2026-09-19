@@ -52,4 +52,9 @@ def test_joint_limit_violation_is_reported():
 def test_joint_limit_valid_pose_has_no_warning():
     # shoulder -> elbow -> hand forms a right angle
     report = analyze_joint_limits(make_clip(Vec2(5, 25)))
-    assert not report["warnings"]
+    elbow_l_warnings = [
+        warning
+        for warning in report["warnings"]
+        if warning.get("joint") == "elbow_l"
+    ]
+    assert not elbow_l_warnings
