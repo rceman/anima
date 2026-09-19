@@ -8,20 +8,34 @@ from .rig import HUMANOID_BONES
 
 
 def vec_derivative(values: list[Vec2], dt: float) -> list[Vec2]:
-    if not values:
+    """Finite-difference derivative with central differences internally."""
+    count = len(values)
+    if count == 0:
         return []
-    out = [Vec2(0.0, 0.0)]
-    for index in range(1, len(values)):
-        out.append((values[index] - values[index - 1]) * (1.0 / dt))
+    if count == 1:
+        return [Vec2(0.0, 0.0)]
+
+    inv_dt = 1.0 / dt
+    out = [(values[1] - values[0]) * inv_dt]
+    for index in range(1, count - 1):
+        out.append((values[index + 1] - values[index - 1]) * (0.5 * inv_dt))
+    out.append((values[-1] - values[-2]) * inv_dt)
     return out
 
 
 def scalar_derivative(values: list[float], dt: float) -> list[float]:
-    if not values:
+    """Finite-difference derivative with central differences internally."""
+    count = len(values)
+    if count == 0:
         return []
-    out = [0.0]
-    for index in range(1, len(values)):
-        out.append((values[index] - values[index - 1]) / dt)
+    if count == 1:
+        return [0.0]
+
+    inv_dt = 1.0 / dt
+    out = [(values[1] - values[0]) * inv_dt]
+    for index in range(1, count - 1):
+        out.append((values[index + 1] - values[index - 1]) * (0.5 * inv_dt))
+    out.append((values[-1] - values[-2]) * inv_dt)
     return out
 
 
