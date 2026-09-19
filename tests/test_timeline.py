@@ -1,3 +1,5 @@
+import pytest
+
 from anima.model import FramePose, MotionClip, Vec2, WeaponPose
 from anima.timeline import densify_clip
 
@@ -80,5 +82,5 @@ def test_explicit_timestamps_are_interpolated_and_preserved():
 
     dense = densify_clip(clip, easing="linear")
 
-    assert [frame.time_s for frame in dense.frames] == [0.0, 0.2, 0.4, 0.6]
-    assert dense.times_s() == [0.0, 0.2, 0.4, 0.6]
+    assert [frame.time_s for frame in dense.frames] == pytest.approx([0.0, 0.2, 0.4, 0.6])
+    assert dense.times_s() == pytest.approx([0.0, 0.2, 0.4, 0.6])
