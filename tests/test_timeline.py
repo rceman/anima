@@ -45,3 +45,27 @@ def test_sparse_keyframes_are_densified():
     assert [frame.frame for frame in dense.frames] == [0, 1, 2, 3]
     assert dense.frames[1].root.x == 20
     assert dense.frames[2].root.x == 30
+
+
+def test_weapon_interpolation_follows_arc_not_tip_chord():
+    a = pose(0, 10)
+    b = pose(2, 10)
+    a.weapon = WeaponPose(
+        Vec2(20, 20),
+        Vec2(18, 20),
+        Vec2(30, 20),
+    )
+    b.weapon = WeaponPose(
+        Vec2(20, 20),
+        Vec2(20, 18),
+        Vec2(20, 30),
+    )
+    clip = MotionClip(128, 128, 60, 12, "test", [a, b])
+
+    dense = densify_clip(clip, easing="linear")
+    mid = dense.frames[1]
+
+    blade = mid.weapon.tip - mid.weapon.grip_main
+    assert abs(blade.length() - 10.0) < 1e-6
+    assert abs(blade.x - blade.y) < 1e-6
+    assert blade.x > 7.0
