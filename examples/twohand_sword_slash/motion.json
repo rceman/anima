@@ -98,8 +98,8 @@
         ]
       },
       "contacts": {
-        "foot_l": true,
-        "foot_r": true
+        "foot_l": "planted",
+        "foot_r": "planted"
       },
       "ik_poles": {
         "elbow_l": [
@@ -200,8 +200,8 @@
         ]
       },
       "contacts": {
-        "foot_l": true,
-        "foot_r": true
+        "foot_l": "planted",
+        "foot_r": "planted"
       },
       "ik_poles": {
         "elbow_l": [
@@ -302,8 +302,8 @@
         ]
       },
       "contacts": {
-        "foot_l": true,
-        "foot_r": true
+        "foot_l": "planted",
+        "foot_r": "planted"
       },
       "ik_poles": {
         "elbow_l": [
@@ -404,8 +404,8 @@
         ]
       },
       "contacts": {
-        "foot_l": true,
-        "foot_r": true
+        "foot_l": "planted",
+        "foot_r": "planted"
       },
       "ik_poles": {
         "elbow_l": [
@@ -506,8 +506,8 @@
         ]
       },
       "contacts": {
-        "foot_l": true,
-        "foot_r": true
+        "foot_l": "grounded",
+        "foot_r": "planted"
       },
       "ik_poles": {
         "elbow_l": [
@@ -608,8 +608,8 @@
         ]
       },
       "contacts": {
-        "foot_l": true,
-        "foot_r": true
+        "foot_l": "grounded",
+        "foot_r": "planted"
       },
       "ik_poles": {
         "elbow_l": [
@@ -710,8 +710,8 @@
         ]
       },
       "contacts": {
-        "foot_l": true,
-        "foot_r": true
+        "foot_l": "grounded",
+        "foot_r": "planted"
       },
       "ik_poles": {
         "elbow_l": [
@@ -812,8 +812,8 @@
         ]
       },
       "contacts": {
-        "foot_l": true,
-        "foot_r": true
+        "foot_l": "planted",
+        "foot_r": "planted"
       },
       "ik_poles": {
         "elbow_l": [
@@ -851,7 +851,9 @@
       "foot_half_width_px": 4,
       "max_planted_slip_px": 0.25,
       "max_com_accel_m_s2": 35,
-      "max_com_jerk_m_s3": 350
+      "max_com_jerk_m_s3": 350,
+      "gravity_m_s2": 9.81,
+      "friction_coefficient": 0.8
     }
   }
 }
