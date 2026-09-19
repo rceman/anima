@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from anima.model import MotionClip
 from anima.retiming import recommend_timing
 
@@ -11,7 +13,11 @@ def test_timing_recommendation_slows_excessive_dynamics():
         rig="test",
         frames=[],
     )
-    clip.frames = [object(), object(), object()]  # frame count only for this unit test
+    clip.frames = [
+        SimpleNamespace(frame=0, label="ready"),
+        SimpleNamespace(frame=1, label="impact"),
+        SimpleNamespace(frame=2, label="follow"),
+    ]
 
     report = {
         "weapon": {
@@ -54,3 +60,43 @@ def test_timing_recommendation_slows_excessive_dynamics():
     assert timing["recommended"]["global_time_scale"] > 1.0
     assert timing["recommended"]["fps_if_same_frames"] < 10.0
     assert timing["recommended"]["frame_count_if_same_fps"] > 3
+
+
+def test_segment_recommendation_maps_reasons_to_phase():
+    clip = MotionClip(
+        width=128,
+        height=128,
+        ground_y=108,
+        fps=10,
+        rig="test",
+        frames=[
+            SimpleNamespace(frame=0, label="ready"),
+            SimpleNamespace(frame=2, label="impact"),
+            SimpleNamespace(frame=4, label="follow"),
+        ],
+    )
+    report = {
+        "weapon": {
+            "profile": {
+                "inertia_kg_m2": 1.0,
+                "damping_nm_per_rad_s": 0.0,
+                "max_braking_torque_nm": 1.0,
+            },
+            "frames": [
+                {
+                    "frame": 3,
+                    "angular_velocity_deg_s": 300.0,
+                    "angular_acceleration_deg_s2": 3000.0,
+                }
+            ],
+        },
+        "body": {"profile": {}, "frames": []},
+        "system": {"profile": {}, "frames": []},
+    }
+
+    timing = recommend_timing(clip, report)
+    follow_segment = timing["segments"][1]
+
+    assert follow_segment["from_label"] == "impact"
+    assert follow_segment["to_label"] == "follow"
+    assert follow_segment["recommended_frame_span_same_fps"] > 2
