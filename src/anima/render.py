@@ -13,7 +13,7 @@ DEBUG = {
     "torso": "#F0E6C5",
     "left": "#56B4E9",
     "right": "#E69F00",
-    "weapon": "#CC79A7",
+    "weapon": "#9B8CFF",
     "joint": "#FFFFFF",
 }
 CONTROL = {
@@ -47,18 +47,25 @@ def render_debug_frame(
     draw.line(
         [(0, round(clip.ground_y)), (clip.width - 1, round(clip.ground_y))],
         fill=DEBUG["ground"],
-        width=1,
+        width=2,
     )
 
+    caption = f"F{frame.frame:02d}"
+    if frame.label:
+        caption += f" {frame.label}"
+    draw.text((3, 3), caption, fill=DEBUG["joint"])
+
     if "chest" in frame.joints:
-        _line(draw, frame.root, frame.joints["chest"], DEBUG["torso"], 2)
+        _line(draw, frame.root, frame.joints["chest"], DEBUG["torso"], 3)
+    if {"chest", "head"}.issubset(frame.joints):
+        _line(draw, frame.joints["chest"], frame.joints["head"], DEBUG["torso"], 2)
     if {"shoulder_l", "shoulder_r"}.issubset(frame.joints):
         _line(
             draw,
             frame.joints["shoulder_l"],
             frame.joints["shoulder_r"],
             DEBUG["torso"],
-            2,
+            3,
         )
     if {"hip_l", "hip_r"}.issubset(frame.joints):
         _line(
@@ -66,7 +73,7 @@ def render_debug_frame(
             frame.joints["hip_l"],
             frame.joints["hip_r"],
             DEBUG["torso"],
-            2,
+            3,
         )
 
     chains = (
@@ -77,18 +84,30 @@ def render_debug_frame(
     )
     for names, color in chains:
         if all(name in frame.joints for name in names):
-            _line(draw, frame.joints[names[0]], frame.joints[names[1]], color, 2)
-            _line(draw, frame.joints[names[1]], frame.joints[names[2]], color, 2)
+            _line(draw, frame.joints[names[0]], frame.joints[names[1]], color, 3)
+            _line(draw, frame.joints[names[1]], frame.joints[names[2]], color, 3)
 
-    _line(draw, frame.weapon.grip_off, frame.weapon.tip, DEBUG["weapon"], 2)
+    _line(draw, frame.weapon.grip_off, frame.weapon.tip, DEBUG["weapon"], 3)
 
     for name, point in frame.joints.items():
         x, y = _xy(point)
-        radius = 2 if name.startswith(("hand", "foot")) else 1
+        radius = 3 if name.startswith(("hand", "foot")) else 2
         draw.ellipse(
             [x - radius, y - radius, x + radius, y + radius],
             fill=DEBUG["joint"],
         )
+
+    # Root/pelvis anchor: diamond. This makes root drift immediately visible.
+    rx, ry = _xy(frame.root)
+    draw.polygon(
+        [(rx, ry - 4), (rx + 4, ry), (rx, ry + 4), (rx - 4, ry)],
+        outline=DEBUG["torso"],
+    )
+
+    # Head outline makes torso/head motion easier to inspect.
+    if "head" in frame.joints:
+        hx, hy = _xy(frame.joints["head"])
+        draw.ellipse([hx - 5, hy - 6, hx + 5, hy + 5], outline=DEBUG["torso"], width=2)
 
     # Redundant marker shapes: left=box, right=circle.
     for name in ("hand_l", "foot_l"):
@@ -235,8 +254,14 @@ def export_render_set(
     control_sheet.save(output / "control_sheet.png")
 
     duration = max(1, round(1000.0 / clip.fps))
-    debug_preview = [_scaled(frame, scale) for frame in debug]
-    control_preview = [_scaled(frame, scale) for frame in control]
+
+    # Debug is intentionally larger than the control preview: it is a
+    # diagnostic instrument, not an art asset. 128px source frames become
+    # at least 1024px so elbow flips, foot drift, and root motion are obvious.
+    debug_scale = max(8, scale * 2)
+    control_scale = max(4, scale)
+    debug_preview = [_scaled(frame, debug_scale) for frame in debug]
+    control_preview = [_scaled(frame, control_scale) for frame in control]
 
     debug_preview[0].save(
         output / "debug_preview.gif",
@@ -255,5 +280,28 @@ def export_render_set(
         disposal=2,
     )
 
-    _scaled(debug_sheet, scale).save(output / "debug_sheet.preview.png")
-    _scaled(control_sheet, scale).save(output / "control_sheet.preview.png")
+    _scaled(debug_sheet, debug_scale).save(output / "debug_sheet.preview.png")
+    _scaled(control_sheet, control_scale).save(output / "control_sheet.preview.png")
+
+    # Side-by-side review GIF at the larger debug scale. Useful for checking
+    # that the mannequin still matches the solved skeleton.
+    control_review = [_scaled(frame, debug_scale) for frame in control]
+    review_frames: list[Image.Image] = []
+    for debug_frame, control_frame in zip(debug_preview, control_review):
+        review = Image.new(
+            "RGB",
+            (debug_frame.width + control_frame.width, debug_frame.height),
+            DEBUG["background"],
+        )
+        review.paste(debug_frame, (0, 0))
+        review.paste(control_frame, (debug_frame.width, 0))
+        review_frames.append(review)
+
+    review_frames[0].save(
+        output / "review_preview.gif",
+        save_all=True,
+        append_images=review_frames[1:],
+        duration=duration,
+        loop=0,
+        disposal=2,
+    )
