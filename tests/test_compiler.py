@@ -7,12 +7,13 @@ from anima.compiler import compile_motion
 
 def test_example_exports_canonical_128_frames(tmp_path: Path):
     source = Path("examples/twohand_sword_slash/motion.json")
-    assert compile_motion(
+    ok = compile_motion(
         source,
         tmp_path,
         scale=3,
         auto_retime_iterations=1,
     )
+    assert ok, (tmp_path / "validation.json").read_text(encoding="utf-8")
 
     frame = Image.open(tmp_path / "control_frames" / "frame_00.png")
     assert frame.size == (128, 128)
