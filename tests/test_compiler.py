@@ -16,7 +16,16 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     assert sheet.size == (512, 256)
 
     preview = Image.open(tmp_path / "control_sheet.preview.png")
-    assert preview.size == (1536, 768)
+    assert preview.size == (2048, 1024)
+
+    debug_preview = Image.open(tmp_path / "debug_preview.gif")
+    assert debug_preview.size == (1024, 1024)
+
+    control_preview = Image.open(tmp_path / "control_preview.gif")
+    assert control_preview.size == (512, 512)
+
+    review_preview = Image.open(tmp_path / "review_preview.gif")
+    assert review_preview.size == (2048, 1024)
 
     prompt = (tmp_path / "imagegen_prompt.txt").read_text(encoding="utf-8")
     assert "two-handed grip" in prompt
