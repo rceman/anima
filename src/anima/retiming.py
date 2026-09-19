@@ -224,6 +224,12 @@ def _segment_recommendations(
     if len(anchors) < 2:
         return []
 
+    times = clip.times_s()
+    time_by_frame = {
+        frame.frame: times[index]
+        for index, frame in enumerate(clip.frames)
+    }
+
     segments: list[dict[str, Any]] = []
     for left, right in zip(anchors, anchors[1:]):
         local_reasons = [
@@ -236,7 +242,7 @@ def _segment_recommendations(
             [1.0] + [float(reason.get("time_scale", 1.0)) for reason in local_reasons]
         )
         span = right.frame - left.frame
-        duration = span / clip.fps
+        duration = time_by_frame[right.frame] - time_by_frame[left.frame]
         segments.append(
             {
                 "from_frame": left.frame,
@@ -275,7 +281,8 @@ def recommend_timing(
     scale = max(1.0, weapon_scale, body_scale, system_scale)
 
     frame_count = len(clip.frames)
-    duration_s = (frame_count - 1) / clip.fps if frame_count > 1 else 0.0
+    times = clip.times_s()
+    duration_s = (times[-1] - times[0]) if frame_count > 1 else 0.0
     recommended_duration = duration_s * scale
     recommended_fps = clip.fps / scale if scale > 0 else clip.fps
     recommended_frames_same_fps = (
@@ -291,6 +298,10 @@ def recommend_timing(
             "fps": clip.fps,
             "frame_count": frame_count,
             "duration_s": duration_s,
+            "uses_explicit_timestamps": any(
+                frame.time_s is not None
+                for frame in clip.frames
+            ),
         },
         "recommended": {
             "global_time_scale": scale,
