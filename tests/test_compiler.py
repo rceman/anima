@@ -34,6 +34,7 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
 
     assert (tmp_path / "dynamics.json").exists()
     assert (tmp_path / "retime_history.json").exists()
+    assert (tmp_path / "diagnostics_summary.json").exists()
 
     prompt = (tmp_path / "imagegen_prompt.txt").read_text(encoding="utf-8")
     assert "two-handed grip" in prompt
