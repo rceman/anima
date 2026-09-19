@@ -41,6 +41,9 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     review_preview = Image.open(tmp_path / "review_preview.gif")
     assert review_preview.size == (2048, 1024)
 
+    inspection_preview = Image.open(tmp_path / "inspection_preview.gif")
+    assert inspection_preview.size == (1024, 512)
+
     assert (tmp_path / "dynamics.json").exists()
     assert (tmp_path / "retime_history.json").exists()
     assert (tmp_path / "diagnostics_summary.json").exists()
