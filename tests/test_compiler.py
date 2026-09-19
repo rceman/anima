@@ -7,7 +7,12 @@ from anima.compiler import compile_motion
 
 def test_example_exports_canonical_128_frames(tmp_path: Path):
     source = Path("examples/twohand_sword_slash/motion.json")
-    assert compile_motion(source, tmp_path, scale=3)
+    assert compile_motion(
+        source,
+        tmp_path,
+        scale=3,
+        auto_retime_iterations=1,
+    )
 
     frame = Image.open(tmp_path / "control_frames" / "frame_00.png")
     assert frame.size == (128, 128)
@@ -28,6 +33,7 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     assert review_preview.size == (2048, 1024)
 
     assert (tmp_path / "dynamics.json").exists()
+    assert (tmp_path / "retime_history.json").exists()
 
     prompt = (tmp_path / "imagegen_prompt.txt").read_text(encoding="utf-8")
     assert "two-handed grip" in prompt
