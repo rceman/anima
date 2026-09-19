@@ -593,6 +593,7 @@ def render_inspection_frame(
     lines = [
         f"F{frame.frame:02d} {frame.label or ''}",
         f"t {timestamp:.3f}s",
+        ("STOP velocity=0" if frame.kinematic_stop else ""),
         "",
         "LEFT  square/blue",
         "RIGHT circle/orange",
