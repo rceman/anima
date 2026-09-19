@@ -36,6 +36,12 @@ def _interpolate_pose(
     # Contacts are semantic/discrete. Pick the nearest keyframe.
     contact_source = a if t < 0.5 else b
 
+    pole_names = a.ik_poles.keys() & b.ik_poles.keys()
+    ik_poles = {
+        name: _mix_vec(a.ik_poles[name], b.ik_poles[name], t)
+        for name in pole_names
+    }
+
     return FramePose(
         frame=frame_no,
         root=_mix_vec(a.root, b.root, t),
@@ -46,6 +52,7 @@ def _interpolate_pose(
             tip=_mix_vec(a.weapon.tip, b.weapon.tip, t),
         ),
         contacts=dict(contact_source.contacts),
+        ik_poles=ik_poles,
         label=None,
     )
 
