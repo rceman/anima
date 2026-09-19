@@ -275,6 +275,7 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
                 contacts=dict(frame.contacts),
                 ik_poles=dict(frame.ik_poles),
                 label=frame.label,
+                time_s=frame.time_s,
             )
         )
 
