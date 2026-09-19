@@ -26,6 +26,8 @@ DEBUG = {
     "system": "#B3FFFC",
     "force": "#F5F5F5",
     "pole": "#B0BEC5",
+    "ghost": "#56616A",
+    "trail": "#D8C7FF",
 }
 CONTROL = {
     "background": "#1E252A",
@@ -75,6 +77,8 @@ def render_debug_frame(
     body_diag: dict | None = None,
     weapon_diag: dict | None = None,
     system_diag: dict | None = None,
+    previous_frame: FramePose | None = None,
+    history: list[FramePose] | None = None,
 ) -> Image.Image:
     image = Image.new("RGB", (clip.width, clip.height), DEBUG["background"])
     draw = ImageDraw.Draw(image)
@@ -90,6 +94,59 @@ def render_debug_frame(
     if frame.label:
         caption += f" {frame.label}"
     draw.text((3, 3), caption, fill=DEBUG["joint"])
+
+
+    # Onion-skin the immediately previous solved pose. This is intentionally
+    # monochrome/muted so current left/right colors remain unambiguous.
+    if previous_frame is not None:
+        ghost_chains = (
+            ("shoulder_l", "elbow_l", "hand_l"),
+            ("shoulder_r", "elbow_r", "hand_r"),
+            ("hip_l", "knee_l", "foot_l"),
+            ("hip_r", "knee_r", "foot_r"),
+        )
+        for names in ghost_chains:
+            if all(name in previous_frame.joints for name in names):
+                _line(
+                    draw,
+                    previous_frame.joints[names[0]],
+                    previous_frame.joints[names[1]],
+                    DEBUG["ghost"],
+                    1,
+                )
+                _line(
+                    draw,
+                    previous_frame.joints[names[1]],
+                    previous_frame.joints[names[2]],
+                    DEBUG["ghost"],
+                    1,
+                )
+        if "chest" in previous_frame.joints:
+            _line(
+                draw,
+                previous_frame.root,
+                previous_frame.joints["chest"],
+                DEBUG["ghost"],
+                1,
+            )
+        _line(
+            draw,
+            previous_frame.weapon.grip_off,
+            previous_frame.weapon.tip,
+            DEBUG["ghost"],
+            1,
+        )
+
+    # Motion trails show trajectory rather than only instantaneous pose.
+    if history:
+        sword_points = [_xy(item.weapon.tip) for item in history]
+        root_points = [_xy(item.root) for item in history]
+        if len(sword_points) > 1:
+            draw.line(sword_points, fill=DEBUG["trail"], width=1)
+        if len(root_points) > 1:
+            draw.line(root_points, fill=DEBUG["ghost"], width=1)
+        for x, y in sword_points:
+            draw.point((x, y), fill=DEBUG["trail"])
 
     if "chest" in frame.joints:
         _line(draw, frame.root, frame.joints["chest"], DEBUG["torso"], 3)
@@ -133,6 +190,22 @@ def render_debug_frame(
             fill=DEBUG["joint"],
         )
 
+
+
+    joint_labels = {
+        "elbow_l": "EL",
+        "elbow_r": "ER",
+        "hand_l": "HL",
+        "hand_r": "HR",
+        "knee_l": "KL",
+        "knee_r": "KR",
+        "foot_l": "FL",
+        "foot_r": "FR",
+    }
+    for name, label in joint_labels.items():
+        if name in frame.joints:
+            lx, ly = _xy(frame.joints[name])
+            draw.text((lx + 3, ly - 4), label, fill=DEBUG["joint"])
 
     # IK pole targets: small X markers connected to the solved elbow/knee.
     # These make bend-side mistakes visible even when the final joint still
@@ -408,6 +481,8 @@ def export_render_set(
             body_diag=body_by_frame.get(frame.frame),
             weapon_diag=weapon_by_frame.get(frame.frame),
             system_diag=system_by_frame.get(frame.frame),
+            previous_frame=(clip.frames[index - 1] if index > 0 else None),
+            history=clip.frames[: index + 1],
         )
         control_frame = render_control_frame(clip, frame, scale=1)
         debug_frame.save(debug_dir / f"frame_{index:02d}.png")
