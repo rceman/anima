@@ -27,5 +27,7 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     review_preview = Image.open(tmp_path / "review_preview.gif")
     assert review_preview.size == (2048, 1024)
 
+    assert (tmp_path / "dynamics.json").exists()
+
     prompt = (tmp_path / "imagegen_prompt.txt").read_text(encoding="utf-8")
     assert "two-handed grip" in prompt
