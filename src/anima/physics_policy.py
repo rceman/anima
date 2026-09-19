@@ -12,6 +12,7 @@ HARD_CODES = {
     "joint_limit_violation",
     "handle_force_exceeded",
     "system_friction_limit_exceeded",
+    "joint_torque_limit_exceeded",
 }
 
 SOFT_CODES = {
@@ -27,6 +28,7 @@ def evaluate_physics(dynamics_report: dict[str, Any]) -> dict[str, Any]:
     body_warnings = list(dynamics_report.get("body", {}).get("warnings", []))
     weapon_warnings = list(dynamics_report.get("weapon", {}).get("warnings", []))
     system_warnings = list(dynamics_report.get("system", {}).get("warnings", []))
+    strength_warnings = list(dynamics_report.get("strength", {}).get("warnings", []))
 
     all_warnings = [
         {**warning, "domain": "body"} for warning in body_warnings
@@ -34,6 +36,8 @@ def evaluate_physics(dynamics_report: dict[str, Any]) -> dict[str, Any]:
         {**warning, "domain": "weapon"} for warning in weapon_warnings
     ] + [
         {**warning, "domain": "system"} for warning in system_warnings
+    ] + [
+        {**warning, "domain": "strength"} for warning in strength_warnings
     ]
 
     hard = [warning for warning in all_warnings if warning.get("code") in HARD_CODES]
