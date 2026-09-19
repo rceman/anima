@@ -853,7 +853,9 @@
       "impact_frame": 4,
       "collision": false,
       "center_of_mass_fraction": 0.45,
-      "max_handle_force_n": 1200
+      "max_handle_force_n": 1200,
+      "max_drive_torque_nm": 32,
+      "enforce_drive_torque_limit": true
     },
     "body": {
       "mass_kg": 78,
