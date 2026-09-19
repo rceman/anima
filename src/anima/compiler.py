@@ -8,6 +8,7 @@ from .constraints import normalize_clip, validate_clip
 from .handoff import imagegen_prompt
 from .model import MotionClip
 from .render import export_render_set
+from .retime_apply import auto_retime
 from .timeline import densify_clip
 
 
@@ -16,6 +17,7 @@ def compile_motion(
     output_dir: str | Path,
     scale: int = 4,
     strict_physics: bool = False,
+    auto_retime_iterations: int = 0,
 ) -> bool:
     source = MotionClip.load(input_path)
     dense = densify_clip(source)
@@ -23,6 +25,18 @@ def compile_motion(
 
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
+
+    retime_history = None
+    if auto_retime_iterations > 0:
+        normalized, retime_history = auto_retime(
+            normalized,
+            iterations=auto_retime_iterations,
+        )
+        (output / "retime_history.json").write_text(
+            json.dumps({"history": retime_history}, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
     normalized.save(output / "motion.normalized.json")
 
     report = validate_clip(normalized)
