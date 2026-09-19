@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .biomechanics import analyze_body_kinematics
+from .coordination import analyze_coordination
 from .dynamics import analyze_weapon_dynamics
 from .model import MotionClip
 from .physics_policy import evaluate_physics
