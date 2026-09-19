@@ -19,3 +19,9 @@ jobs:
         run: |
           cat /tmp/anima-example/physics_validation.json
           cat /tmp/anima-example/timing_recommendation.json
+      - name: Upload canonical example diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: anima-example
+          path: /tmp/anima-example
+          if-no-files-found: error
