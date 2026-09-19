@@ -105,3 +105,28 @@ def test_two_bone_ik_prefers_previous_bend_branch():
 
     assert upper_candidate.y > 0
     assert lower_candidate.y < 0
+
+
+def test_planted_contact_locks_world_x_across_phase():
+    clip = make_clip()
+    clip.frames[0].contacts = {"foot_l": "free", "foot_r": "planted"}
+    clip.frames[1].contacts = {"foot_l": "free", "foot_r": "planted"}
+    clip.frames[1].joints["foot_r"] = Vec2(75, 102)
+
+    normalized = normalize_clip(clip)
+
+    assert normalized.frames[0].joints["foot_r"].x == 79
+    assert normalized.frames[1].joints["foot_r"].x == 79
+    assert normalized.frames[1].joints["foot_r"].y == 108
+
+
+def test_grounded_contact_allows_horizontal_slide_but_not_lift():
+    clip = make_clip()
+    clip.frames[0].contacts = {"foot_l": "free", "foot_r": "grounded"}
+    clip.frames[1].contacts = {"foot_l": "free", "foot_r": "grounded"}
+    clip.frames[1].joints["foot_r"] = Vec2(75, 102)
+
+    normalized = normalize_clip(clip)
+
+    assert normalized.frames[1].joints["foot_r"].y == 108
+    assert normalized.frames[1].joints["foot_r"].x == 75
