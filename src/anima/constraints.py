@@ -101,6 +101,70 @@ def clamp_target_to_horizontal_reach(
     return Vec2(start.x + dx, target.y)
 
 
+
+def _world_from_local(
+    origin: Vec2,
+    axis: Vec2,
+    local: tuple[float, float],
+) -> Vec2:
+    perpendicular = Vec2(-axis.y, axis.x)
+    return origin + axis * local[0] + perpendicular * local[1]
+
+
+def _normalize_axial_pose(
+    root: Vec2,
+    joints: dict[str, Vec2],
+    rest: RestGeometry,
+) -> dict[str, Vec2]:
+    """Lock torso/head/shoulder/hip proportions while preserving authored pose direction."""
+    required = {
+        "chest",
+        "head",
+        "shoulder_l",
+        "shoulder_r",
+        "hip_l",
+        "hip_r",
+    }
+    if not required.issubset(joints):
+        return joints
+
+    out = dict(joints)
+    authored_axis = (joints["chest"] - root).normalized(Vec2(0.0, -1.0))
+    chest = root + authored_axis * rest.torso_length
+    out["chest"] = chest
+
+    out["head"] = _world_from_local(
+        chest,
+        authored_axis,
+        rest.head_offset_local,
+    )
+
+    shoulder_center = _world_from_local(
+        chest,
+        authored_axis,
+        rest.shoulder_center_offset_local,
+    )
+    shoulder_direction = (
+        joints["shoulder_r"] - joints["shoulder_l"]
+    ).normalized(rest.rest_shoulder_direction)
+    shoulder_half = rest.shoulder_width * 0.5
+    out["shoulder_l"] = shoulder_center - shoulder_direction * shoulder_half
+    out["shoulder_r"] = shoulder_center + shoulder_direction * shoulder_half
+
+    hip_center = _world_from_local(
+        root,
+        authored_axis,
+        rest.hip_center_offset_local,
+    )
+    hip_direction = (
+        joints["hip_r"] - joints["hip_l"]
+    ).normalized(rest.rest_hip_direction)
+    hip_half = rest.hip_width * 0.5
+    out["hip_l"] = hip_center - hip_direction * hip_half
+    out["hip_r"] = hip_center + hip_direction * hip_half
+    return out
+
+
 def normalize_clip(clip: MotionClip) -> MotionClip:
     if not clip.frames:
         return clip
@@ -123,7 +187,11 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
             avg_y = sum(frame.joints[name].y for name in contact_feet) / len(contact_feet)
             frame = frame.shifted(Vec2(0.0, clip.ground_y - avg_y))
 
-        joints = dict(frame.joints)
+        joints = _normalize_axial_pose(
+            frame.root,
+            dict(frame.joints),
+            rest,
+        )
 
         # 2. Rigidize sword from primary grip and requested blade direction.
         direction = (frame.weapon.tip - frame.weapon.grip_main).normalized(Vec2(1.0, 0.0))
@@ -255,6 +323,31 @@ def validate_clip(clip: MotionClip, tolerance: float = 0.75) -> ValidationReport
                         f"{bone.name}: {length:.2f}px != {expected:.2f}px",
                     )
                 )
+
+
+        # Axial/body proportions are hard invariants, not just limb lengths.
+        if {"chest", "head", "shoulder_l", "shoulder_r", "hip_l", "hip_r"}.issubset(frame.joints):
+            torso_length = frame.root.distance_to(frame.joints["chest"])
+            shoulder_width = frame.joints["shoulder_l"].distance_to(frame.joints["shoulder_r"])
+            hip_width = frame.joints["hip_l"].distance_to(frame.joints["hip_r"])
+            head_distance = frame.joints["chest"].distance_to(frame.joints["head"])
+            rest_head_distance = math.hypot(*rest.head_offset_local)
+
+            axial_checks = (
+                ("torso_length", torso_length, rest.torso_length),
+                ("shoulder_width", shoulder_width, rest.shoulder_width),
+                ("hip_width", hip_width, rest.hip_width),
+                ("head_offset", head_distance, rest_head_distance),
+            )
+            for code, actual, expected in axial_checks:
+                if abs(actual - expected) > tolerance:
+                    issues.append(
+                        Issue(
+                            frame.frame,
+                            code,
+                            f"{code}: {actual:.2f}px != {expected:.2f}px",
+                        )
+                    )
 
         main_hand = frame.joints.get(clip.primary_hand)
         off_hand = frame.joints.get(clip.secondary_hand)
