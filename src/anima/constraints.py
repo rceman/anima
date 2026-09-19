@@ -142,7 +142,7 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
                     target,
                     rest.bone_lengths[upper_name],
                     rest.bone_lengths[lower_name],
-                    joints[elbow_name],
+                    frame.ik_poles.get(elbow_name, joints[elbow_name]),
                     previous_mid=previous_mids.get(elbow_name),
                 )
                 joints[elbow_name] = elbow
@@ -173,7 +173,7 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
                 foot,
                 rest.bone_lengths[thigh_name],
                 rest.bone_lengths[shin_name],
-                joints[knee_name],
+                frame.ik_poles.get(knee_name, joints[knee_name]),
                 previous_mid=previous_mids.get(knee_name),
             )
             joints[knee_name] = knee
@@ -187,6 +187,7 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
                 joints=joints,
                 weapon=weapon,
                 contacts=dict(frame.contacts),
+                ik_poles=dict(frame.ik_poles),
                 label=frame.label,
             )
         )
@@ -201,6 +202,7 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
         primary_hand=clip.primary_hand,
         secondary_hand=clip.secondary_hand,
         metadata=dict(clip.metadata),
+        dynamics=dict(clip.dynamics),
     )
 
 
