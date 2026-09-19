@@ -63,3 +63,14 @@ def test_report_contains_per_frame_kinematics():
     assert "angular_velocity_deg_s" in report["frames"][1]
     assert "estimated_torque_nm" in report["frames"][2]
     assert report["follow_through"]["impact_frame"] == 1
+
+
+def test_enforced_drive_torque_limit_is_reported():
+    clip = clip_for_mass(1.3)
+    clip.dynamics["weapon"]["max_drive_torque_nm"] = 0.1
+    clip.dynamics["weapon"]["enforce_drive_torque_limit"] = True
+
+    report = analyze_weapon_dynamics(clip)
+    codes = {warning["code"] for warning in report["warnings"]}
+
+    assert "drive_torque_limit_exceeded" in codes
