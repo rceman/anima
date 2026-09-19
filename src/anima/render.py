@@ -394,9 +394,14 @@ def render_control_frame(
     head = frame.joints.get("head")
     if head:
         x, y = _xy(head)
+        if {"shoulder_l", "shoulder_r"}.issubset(frame.joints):
+            shoulder_mid = Vec2(
+                (frame.joints["shoulder_l"].x + frame.joints["shoulder_r"].x) * 0.5,
+                (frame.joints["shoulder_l"].y + frame.joints["shoulder_r"].y) * 0.5,
+            )
+            neck_target = Vec2(head.x, head.y + 5.0)
+            _line(draw, shoulder_mid, neck_target, body, 5)
         draw.ellipse([x - 5, y - 6, x + 5, y + 5], fill=body)
-        if "chest" in frame.joints:
-            _line(draw, frame.joints["chest"], head, body, 4)
 
     _line(draw, frame.weapon.grip_off, frame.weapon.tip, body, 3)
     gx, gy = _xy(frame.weapon.grip_main)
@@ -445,9 +450,14 @@ def render_parts_frame(
     head = frame.joints.get("head")
     if head:
         x, y = _xy(head)
+        if {"shoulder_l", "shoulder_r"}.issubset(frame.joints):
+            shoulder_mid = Vec2(
+                (frame.joints["shoulder_l"].x + frame.joints["shoulder_r"].x) * 0.5,
+                (frame.joints["shoulder_l"].y + frame.joints["shoulder_r"].y) * 0.5,
+            )
+            neck_target = Vec2(head.x, head.y + 5.0)
+            _line(draw, shoulder_mid, neck_target, PARTS["torso"], 5)
         draw.ellipse([x - 5, y - 6, x + 5, y + 5], fill=PARTS["head"])
-        if "chest" in frame.joints:
-            _line(draw, frame.joints["chest"], head, PARTS["torso"], 4)
 
     segment_groups = (
         (("shoulder_l", "elbow_l", "hand_l"), PARTS["left_arm"]),
