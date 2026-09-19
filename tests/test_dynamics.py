@@ -67,6 +67,7 @@ def test_report_contains_per_frame_kinematics():
 
 def test_enforced_drive_torque_limit_is_reported():
     clip = clip_for_mass(1.3)
+    clip.dynamics["weapon"]["damping_nm_per_rad_s"] = 1.0
     clip.dynamics["weapon"]["max_drive_torque_nm"] = 0.1
     clip.dynamics["weapon"]["enforce_drive_torque_limit"] = True
 
