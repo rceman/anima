@@ -241,7 +241,7 @@ def _segment_recommendations(
             reason
             for reason in reasons
             if reason.get("frame") is not None
-            and left.frame < int(reason["frame"]) <= right.frame
+            and left.frame <= int(reason["frame"]) <= right.frame
         ]
         scale = max(
             [1.0] + [float(reason.get("time_scale", 1.0)) for reason in local_reasons]
