@@ -73,6 +73,7 @@ class FramePose:
     joints: dict[str, Vec2]
     weapon: WeaponPose
     contacts: dict[str, bool] = field(default_factory=dict)
+    ik_poles: dict[str, Vec2] = field(default_factory=dict)
     label: str | None = None
 
     @classmethod
@@ -83,6 +84,10 @@ class FramePose:
             joints={name: Vec2.from_any(point) for name, point in data["joints"].items()},
             weapon=WeaponPose.from_dict(data["weapon"]),
             contacts={k: bool(v) for k, v in data.get("contacts", {}).items()},
+            ik_poles={
+                name: Vec2.from_any(point)
+                for name, point in data.get("ik_poles", {}).items()
+            },
             label=data.get("label"),
         )
 
@@ -97,6 +102,7 @@ class FramePose:
                 self.weapon.tip + delta,
             ),
             contacts=dict(self.contacts),
+            ik_poles={name: point + delta for name, point in self.ik_poles.items()},
             label=self.label,
         )
 
@@ -107,6 +113,10 @@ class FramePose:
             "joints": {name: point.as_list() for name, point in self.joints.items()},
             "weapon": self.weapon.to_dict(),
             "contacts": dict(self.contacts),
+            "ik_poles": {
+                name: point.as_list()
+                for name, point in self.ik_poles.items()
+            },
         }
         if self.label:
             out["label"] = self.label
@@ -124,6 +134,7 @@ class MotionClip:
     primary_hand: str = "hand_r"
     secondary_hand: str = "hand_l"
     metadata: dict[str, Any] = field(default_factory=dict)
+    dynamics: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MotionClip":
@@ -140,6 +151,7 @@ class MotionClip:
             primary_hand=str(grip.get("primary_hand", "hand_r")),
             secondary_hand=str(grip.get("secondary_hand", "hand_l")),
             metadata=dict(data.get("metadata", {})),
+            dynamics=dict(data.get("dynamics", {})),
         )
 
     @classmethod
@@ -161,6 +173,7 @@ class MotionClip:
                 "secondary_hand": self.secondary_hand,
             },
             "metadata": self.metadata,
+            "dynamics": self.dynamics,
             "frames": [frame.to_dict() for frame in self.frames],
         }
 
