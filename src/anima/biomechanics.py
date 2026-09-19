@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 import math
 from typing import Any
 
+from .anatomy import analyze_joint_limits
 from .contacts import contact_mode, is_ground_contact, is_planted
 from .kinematics import analyze_joint_kinematics, scalar_derivative, unwrap_angles, vec_derivative
 from .model import FramePose, MotionClip, Vec2
@@ -283,9 +284,13 @@ def analyze_body_kinematics(clip: MotionClip) -> dict[str, Any]:
         )
         previous = frame
 
+    anatomy = analyze_joint_limits(clip)
+    warnings.extend(anatomy["warnings"])
+
     return {
         "profile": asdict(profile),
         "frames": frame_reports,
         "joint_kinematics": analyze_joint_kinematics(clip, profile.pixels_per_meter),
+        "anatomy": anatomy,
         "warnings": warnings,
     }
