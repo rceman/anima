@@ -395,6 +395,8 @@ def render_control_frame(
     if head:
         x, y = _xy(head)
         draw.ellipse([x - 5, y - 6, x + 5, y + 5], fill=body)
+        if "chest" in frame.joints:
+            _line(draw, frame.joints["chest"], head, body, 4)
 
     _line(draw, frame.weapon.grip_off, frame.weapon.tip, body, 3)
     gx, gy = _xy(frame.weapon.grip_main)
@@ -444,6 +446,8 @@ def render_parts_frame(
     if head:
         x, y = _xy(head)
         draw.ellipse([x - 5, y - 6, x + 5, y + 5], fill=PARTS["head"])
+        if "chest" in frame.joints:
+            _line(draw, frame.joints["chest"], head, PARTS["torso"], 4)
 
     segment_groups = (
         (("shoulder_l", "elbow_l", "hand_l"), PARTS["left_arm"]),
@@ -467,6 +471,171 @@ def render_parts_frame(
     if scale != 1:
         image = image.resize(
             (clip.width * scale, clip.height * scale),
+            Image.Resampling.NEAREST,
+        )
+    return image
+
+
+
+def render_inspection_frame(
+    clip: MotionClip,
+    frame: FramePose,
+    body_diag: dict | None = None,
+    weapon_diag: dict | None = None,
+    system_diag: dict | None = None,
+    previous_frame: FramePose | None = None,
+    history: list[FramePose] | None = None,
+    scale: int = 4,
+) -> Image.Image:
+    """Large diagnostic panel: uncluttered skeleton left, metrics sidebar right."""
+    panel_width = clip.width * 2
+    image = Image.new("RGB", (panel_width, clip.height), DEBUG["background"])
+    draw = ImageDraw.Draw(image)
+
+    # Ground and motion history only occupy the left motion viewport.
+    gy = round(clip.ground_y)
+    draw.line([(0, gy), (clip.width - 1, gy)], fill=DEBUG["ground"], width=2)
+
+    if history:
+        tip_points = [_xy(item.weapon.tip) for item in history]
+        root_points = [_xy(item.root) for item in history]
+        if len(tip_points) > 1:
+            draw.line(tip_points, fill=DEBUG["trail"], width=1)
+        if len(root_points) > 1:
+            draw.line(root_points, fill=DEBUG["ghost"], width=1)
+
+    if previous_frame is not None:
+        for names in (
+            ("shoulder_l", "elbow_l", "hand_l"),
+            ("shoulder_r", "elbow_r", "hand_r"),
+            ("hip_l", "knee_l", "foot_l"),
+            ("hip_r", "knee_r", "foot_r"),
+        ):
+            if all(name in previous_frame.joints for name in names):
+                _line(draw, previous_frame.joints[names[0]], previous_frame.joints[names[1]], DEBUG["ghost"], 1)
+                _line(draw, previous_frame.joints[names[1]], previous_frame.joints[names[2]], DEBUG["ghost"], 1)
+        _line(draw, previous_frame.weapon.grip_off, previous_frame.weapon.tip, DEBUG["ghost"], 1)
+
+    # Current skeleton.
+    if "chest" in frame.joints:
+        _line(draw, frame.root, frame.joints["chest"], DEBUG["torso"], 3)
+    if {"chest", "head"}.issubset(frame.joints):
+        _line(draw, frame.joints["chest"], frame.joints["head"], DEBUG["torso"], 2)
+    if {"shoulder_l", "shoulder_r"}.issubset(frame.joints):
+        _line(draw, frame.joints["shoulder_l"], frame.joints["shoulder_r"], DEBUG["torso"], 3)
+    if {"hip_l", "hip_r"}.issubset(frame.joints):
+        _line(draw, frame.joints["hip_l"], frame.joints["hip_r"], DEBUG["torso"], 3)
+
+    for names, color in (
+        (("shoulder_l", "elbow_l", "hand_l"), DEBUG["left"]),
+        (("hip_l", "knee_l", "foot_l"), DEBUG["left"]),
+        (("shoulder_r", "elbow_r", "hand_r"), DEBUG["right"]),
+        (("hip_r", "knee_r", "foot_r"), DEBUG["right"]),
+    ):
+        if all(name in frame.joints for name in names):
+            _line(draw, frame.joints[names[0]], frame.joints[names[1]], color, 3)
+            _line(draw, frame.joints[names[1]], frame.joints[names[2]], color, 3)
+
+    _line(draw, frame.weapon.grip_off, frame.weapon.tip, DEBUG["weapon"], 3)
+
+    # Compact joint markers without overlapping labels.
+    for name, point in frame.joints.items():
+        if name not in {
+            "head", "elbow_l", "elbow_r", "hand_l", "hand_r",
+            "knee_l", "knee_r", "foot_l", "foot_r",
+        }:
+            continue
+        x, y = _xy(point)
+        radius = 2
+        draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=DEBUG["joint"])
+
+    # IK poles are rendered as crosses.
+    for name, pole in frame.ik_poles.items():
+        if name not in frame.joints:
+            continue
+        px, py = _xy(pole)
+        draw.line([(px - 2, py - 2), (px + 2, py + 2)], fill=DEBUG["pole"], width=1)
+        draw.line([(px - 2, py + 2), (px + 2, py - 2)], fill=DEBUG["pole"], width=1)
+
+    # COM/system COM.
+    if body_diag and body_diag.get("com_px"):
+        com = Vec2.from_any(body_diag["com_px"])
+        cx, cy = _xy(com)
+        draw.ellipse([cx - 3, cy - 3, cx + 3, cy + 3], outline=DEBUG["joint"], width=1)
+        velocity = Vec2.from_any(body_diag.get("com_velocity_m_s", [0.0, 0.0]))
+        acceleration = Vec2.from_any(body_diag.get("com_acceleration_m_s2", [0.0, 0.0]))
+        _arrow(draw, com, velocity * 5.0, DEBUG["velocity"], 2)
+        _arrow(draw, com, acceleration * 0.25, DEBUG["acceleration"], 1)
+
+    if system_diag and system_diag.get("system_com_px"):
+        sys_com = Vec2.from_any(system_diag["system_com_px"])
+        sx, sy = _xy(sys_com)
+        draw.polygon(
+            [(sx, sy - 4), (sx + 4, sy), (sx, sy + 4), (sx - 4, sy)],
+            outline=DEBUG["system"],
+        )
+
+    # Sidebar separator.
+    sidebar_x = clip.width
+    draw.line([(sidebar_x, 0), (sidebar_x, clip.height - 1)], fill=DEBUG["support"], width=1)
+
+    timestamp = frame.time_s if frame.time_s is not None else frame.frame / clip.fps
+    lines = [
+        f"F{frame.frame:02d} {frame.label or ''}",
+        f"t {timestamp:.3f}s",
+        "",
+        "LEFT  square/blue",
+        "RIGHT circle/orange",
+        "P=planted G=grounded",
+    ]
+
+    if body_diag:
+        velocity = Vec2.from_any(body_diag.get("com_velocity_m_s", [0.0, 0.0]))
+        acceleration = Vec2.from_any(body_diag.get("com_acceleration_m_s2", [0.0, 0.0]))
+        lines.extend([
+            "",
+            f"COM v {velocity.length():.2f} m/s",
+            f"COM a {acceleration.length():.1f} m/s2",
+        ])
+        support = body_diag.get("support")
+        if support:
+            lines.append(f"stability {float(support.get('stability_margin_px', 0.0)):.1f}px")
+
+    if weapon_diag:
+        lines.extend([
+            "",
+            f"sword w {float(weapon_diag.get('angular_velocity_deg_s', 0.0)):.0f} deg/s",
+            f"sword a {float(weapon_diag.get('angular_acceleration_deg_s2', 0.0)):.0f}",
+            f"torque {float(weapon_diag.get('estimated_torque_nm', 0.0)):.1f} Nm",
+            f"handle {float(weapon_diag.get('handle_force_magnitude_n', 0.0)):.0f} N",
+            f"KE {float(weapon_diag.get('total_kinetic_energy_j', 0.0)):.1f} J",
+        ])
+
+    if system_diag and system_diag.get("ground_reaction_force"):
+        grf = system_diag["ground_reaction_force"]
+        lines.extend([
+            "",
+            f"GRF {float(grf.get('magnitude_n', 0.0)):.0f} N",
+            f"mu req {float(grf.get('required_friction_ratio', 0.0)):.2f}",
+        ])
+
+    y = 3
+    for line in lines:
+        draw.text((sidebar_x + 4, y), line, fill=DEBUG["joint"])
+        y += 8
+
+    # Contact labels directly below feet.
+    for foot_name in ("foot_l", "foot_r"):
+        if foot_name not in frame.joints:
+            continue
+        mode = contact_mode(frame.contacts.get(foot_name))
+        marker = {"planted": "P", "grounded": "G", "free": "F"}[mode]
+        fx, fy = _xy(frame.joints[foot_name])
+        draw.text((fx - 2, min(clip.height - 8, fy + 3)), marker, fill=DEBUG["ground"])
+
+    if scale != 1:
+        image = image.resize(
+            (panel_width * scale, clip.height * scale),
             Image.Resampling.NEAREST,
         )
     return image
@@ -537,9 +706,11 @@ def export_render_set(
     debug_dir = output / "debug_frames"
     control_dir = output / "control_frames"
     parts_dir = output / "parts_frames"
+    inspect_dir = output / "inspection_frames"
     debug_dir.mkdir(parents=True, exist_ok=True)
     control_dir.mkdir(parents=True, exist_ok=True)
     parts_dir.mkdir(parents=True, exist_ok=True)
+    inspect_dir.mkdir(parents=True, exist_ok=True)
 
     body_report = analyze_body_kinematics(clip)
     weapon_report = analyze_weapon_dynamics(clip)
@@ -551,6 +722,7 @@ def export_render_set(
     debug: list[Image.Image] = []
     control: list[Image.Image] = []
     parts: list[Image.Image] = []
+    inspection: list[Image.Image] = []
     for index, frame in enumerate(clip.frames):
         debug_frame = render_debug_frame(
             clip,
@@ -564,12 +736,24 @@ def export_render_set(
         )
         control_frame = render_control_frame(clip, frame, scale=1)
         parts_frame = render_parts_frame(clip, frame, scale=1)
+        inspection_frame = render_inspection_frame(
+            clip,
+            frame,
+            body_diag=body_by_frame.get(frame.frame),
+            weapon_diag=weapon_by_frame.get(frame.frame),
+            system_diag=system_by_frame.get(frame.frame),
+            previous_frame=(clip.frames[index - 1] if index > 0 else None),
+            history=clip.frames[: index + 1],
+            scale=1,
+        )
         debug_frame.save(debug_dir / f"frame_{index:02d}.png")
         control_frame.save(control_dir / f"frame_{index:02d}.png")
         parts_frame.save(parts_dir / f"frame_{index:02d}.png")
+        inspection_frame.save(inspect_dir / f"frame_{index:02d}.png")
         debug.append(debug_frame)
         control.append(control_frame)
         parts.append(parts_frame)
+        inspection.append(inspection_frame)
 
     debug_sheet = make_sheet(debug, columns=columns)
     control_sheet = make_sheet(control, columns=columns)
@@ -588,6 +772,7 @@ def export_render_set(
     debug_preview = [_scaled(frame, debug_scale) for frame in debug]
     control_preview = [_scaled(frame, control_scale) for frame in control]
     parts_preview = [_scaled(frame, control_scale) for frame in parts]
+    inspection_preview = [_scaled(frame, 4) for frame in inspection]
 
     debug_preview[0].save(
         output / "debug_preview.gif",
@@ -609,6 +794,14 @@ def export_render_set(
         output / "parts_preview.gif",
         save_all=True,
         append_images=parts_preview[1:],
+        duration=durations,
+        loop=0,
+        disposal=2,
+    )
+    inspection_preview[0].save(
+        output / "inspection_preview.gif",
+        save_all=True,
+        append_images=inspection_preview[1:],
         duration=durations,
         loop=0,
         disposal=2,
