@@ -85,6 +85,8 @@ def render_debug_frame(
     )
 
     caption = f"F{frame.frame:02d}"
+    if frame.time_s is not None:
+        caption += f" @{frame.time_s:.3f}s"
     if frame.label:
         caption += f" {frame.label}"
     draw.text((3, 3), caption, fill=DEBUG["joint"])
@@ -347,6 +349,22 @@ def make_sheet(
     return sheet
 
 
+def _gif_durations_ms(clip: MotionClip) -> list[int]:
+    """Return per-frame GIF hold durations using the clip's real timestamps."""
+    if not clip.frames:
+        return []
+    times = clip.times_s()
+    if len(times) == 1:
+        return [max(1, round(1000.0 / clip.fps))]
+
+    durations = [
+        max(1, round((right - left) * 1000.0))
+        for left, right in zip(times, times[1:])
+    ]
+    durations.append(durations[-1])
+    return durations
+
+
 def _scaled(image: Image.Image, scale: int) -> Image.Image:
     if scale == 1:
         return image
@@ -402,7 +420,7 @@ def export_render_set(
     debug_sheet.save(output / "debug_sheet.png")
     control_sheet.save(output / "control_sheet.png")
 
-    duration = max(1, round(1000.0 / clip.fps))
+    durations = _gif_durations_ms(clip)
 
     # Debug is intentionally larger than the control preview: it is a
     # diagnostic instrument, not an art asset. 128px source frames become
@@ -416,7 +434,7 @@ def export_render_set(
         output / "debug_preview.gif",
         save_all=True,
         append_images=debug_preview[1:],
-        duration=duration,
+        duration=durations,
         loop=0,
         disposal=2,
     )
@@ -424,7 +442,7 @@ def export_render_set(
         output / "control_preview.gif",
         save_all=True,
         append_images=control_preview[1:],
-        duration=duration,
+        duration=durations,
         loop=0,
         disposal=2,
     )
@@ -450,7 +468,7 @@ def export_render_set(
         output / "review_preview.gif",
         save_all=True,
         append_images=review_frames[1:],
-        duration=duration,
+        duration=durations,
         loop=0,
         disposal=2,
     )
