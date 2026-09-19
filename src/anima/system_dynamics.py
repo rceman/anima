@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from .kinematics import vec_derivative_times
+from .kinematics import stop_indices, vec_derivative_times
 from .model import MotionClip, Vec2
 
 
@@ -62,7 +62,8 @@ def analyze_system_dynamics(
         for point in system_com_px
     ]
     times = clip.times_s()
-    velocity = vec_derivative_times(system_com_m, times)
+    stops = stop_indices(clip)
+    velocity = vec_derivative_times(system_com_m, times, stops)
     acceleration = vec_derivative_times(velocity, times)
     jerk = vec_derivative_times(acceleration, times)
 
