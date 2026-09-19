@@ -21,6 +21,11 @@ class WeaponDynamicsProfile:
     enforce_drive_torque_limit: bool = False
     impact_frame: int | None = None
     collision: bool = False
+    target_effective_mass_kg: float | None = None
+    coefficient_of_restitution: float = 0.0
+    impact_radius_fraction: float = 0.9
+    collision_velocity_tolerance_fraction: float = 0.35
+    enforce_collision_response: bool = False
 
     @property
     def inertia_kg_m2(self) -> float:
@@ -57,6 +62,23 @@ class WeaponDynamicsProfile:
                 else None
             ),
             collision=bool(raw.get("collision", False)),
+            target_effective_mass_kg=(
+                float(raw["target_effective_mass_kg"])
+                if raw.get("target_effective_mass_kg") is not None
+                else None
+            ),
+            coefficient_of_restitution=float(
+                raw.get("coefficient_of_restitution", 0.0)
+            ),
+            impact_radius_fraction=float(
+                raw.get("impact_radius_fraction", 0.9)
+            ),
+            collision_velocity_tolerance_fraction=float(
+                raw.get("collision_velocity_tolerance_fraction", 0.35)
+            ),
+            enforce_collision_response=bool(
+                raw.get("enforce_collision_response", False)
+            ),
         )
 
 
@@ -265,6 +287,87 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
                     }
                 )
 
+
+    collision_response: dict[str, Any] | None = None
+    if (
+        profile.collision
+        and impact_index is not None
+        and impact_index > 0
+        and impact_index + 1 < len(omega)
+        and profile.target_effective_mass_kg is not None
+        and profile.target_effective_mass_kg > 0.0
+    ):
+        radius = max(
+            profile.effective_length_m * profile.impact_radius_fraction,
+            1e-6,
+        )
+        weapon_effective_mass = inertia / (radius * radius)
+        target_mass = profile.target_effective_mass_kg
+        restitution = min(1.0, max(0.0, profile.coefficient_of_restitution))
+
+        omega_before = omega[impact_index]
+        tangential_before = omega_before * radius
+        tangential_after = (
+            (weapon_effective_mass - restitution * target_mass)
+            / (weapon_effective_mass + target_mass)
+        ) * tangential_before
+        target_velocity_after = (
+            (1.0 + restitution)
+            * weapon_effective_mass
+            / (weapon_effective_mass + target_mass)
+        ) * tangential_before
+
+        expected_omega_after = tangential_after / radius
+        observed_omega_after = omega[impact_index + 1]
+        impulse_ns = abs(
+            weapon_effective_mass
+            * (tangential_after - tangential_before)
+        )
+
+        before_energy = 0.5 * weapon_effective_mass * tangential_before * tangential_before
+        weapon_after_energy = 0.5 * weapon_effective_mass * tangential_after * tangential_after
+        target_after_energy = 0.5 * target_mass * target_velocity_after * target_velocity_after
+        dissipated_energy = max(
+            0.0,
+            before_energy - weapon_after_energy - target_after_energy,
+        )
+
+        tolerance = max(
+            abs(expected_omega_after)
+            * profile.collision_velocity_tolerance_fraction,
+            math.radians(30.0),
+        )
+        mismatch = abs(observed_omega_after - expected_omega_after)
+
+        collision_response = {
+            "impact_frame": profile.impact_frame,
+            "impact_radius_m": radius,
+            "weapon_effective_mass_kg": weapon_effective_mass,
+            "target_effective_mass_kg": target_mass,
+            "coefficient_of_restitution": restitution,
+            "omega_before_deg_s": math.degrees(omega_before),
+            "expected_omega_after_deg_s": math.degrees(expected_omega_after),
+            "observed_omega_after_deg_s": math.degrees(observed_omega_after),
+            "allowed_velocity_error_deg_s": math.degrees(tolerance),
+            "impulse_ns": impulse_ns,
+            "target_velocity_after_m_s": target_velocity_after,
+            "estimated_dissipated_energy_j": dissipated_energy,
+        }
+
+        if profile.enforce_collision_response and mismatch > tolerance:
+            warnings.append(
+                {
+                    "code": "collision_response_mismatch",
+                    "frame": clip.frames[impact_index + 1].frame,
+                    "message": (
+                        f"Observed post-impact angular velocity "
+                        f"{math.degrees(observed_omega_after):.1f} deg/s differs "
+                        f"from the configured collision model expectation "
+                        f"{math.degrees(expected_omega_after):.1f} deg/s."
+                    ),
+                }
+            )
+
     frames = []
     for i, frame in enumerate(clip.frames):
         frames.append(
@@ -297,5 +400,6 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
         },
         "frames": frames,
         "follow_through": follow_through,
+        "collision_response": collision_response,
         "warnings": warnings,
     }
