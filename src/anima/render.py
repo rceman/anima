@@ -34,6 +34,17 @@ CONTROL = {
     "body": "#DAD3B5",
     "ground": "#626E78",
 }
+PARTS = {
+    "background": "#1E252A",
+    "ground": "#626E78",
+    "head": "#F0E6C5",
+    "torso": "#DAD3B5",
+    "left_arm": "#56B4E9",
+    "right_arm": "#E69F00",
+    "left_leg": "#7AA6FF",
+    "right_leg": "#F0C05A",
+    "weapon": "#9B8CFF",
+}
 
 
 def _xy(p: Vec2) -> tuple[int, int]:
@@ -397,6 +408,70 @@ def render_control_frame(
     return image
 
 
+
+def render_parts_frame(
+    clip: MotionClip,
+    frame: FramePose,
+    scale: int = 4,
+) -> Image.Image:
+    """Render a layered/segmentation guide for downstream generative rendering.
+
+    Colors identify semantic body parts; they are not final art colors.
+    """
+    image = Image.new("RGB", (clip.width, clip.height), PARTS["background"])
+    draw = ImageDraw.Draw(image)
+    draw.line(
+        [(0, round(clip.ground_y)), (clip.width - 1, round(clip.ground_y))],
+        fill=PARTS["ground"],
+        width=1,
+    )
+
+    if all(
+        name in frame.joints
+        for name in ("shoulder_l", "shoulder_r", "hip_r", "hip_l")
+    ):
+        draw.polygon(
+            [
+                _xy(frame.joints["shoulder_l"]),
+                _xy(frame.joints["shoulder_r"]),
+                _xy(frame.joints["hip_r"]),
+                _xy(frame.joints["hip_l"]),
+            ],
+            fill=PARTS["torso"],
+        )
+
+    head = frame.joints.get("head")
+    if head:
+        x, y = _xy(head)
+        draw.ellipse([x - 5, y - 6, x + 5, y + 5], fill=PARTS["head"])
+
+    segment_groups = (
+        (("shoulder_l", "elbow_l", "hand_l"), PARTS["left_arm"]),
+        (("shoulder_r", "elbow_r", "hand_r"), PARTS["right_arm"]),
+        (("hip_l", "knee_l", "foot_l"), PARTS["left_leg"]),
+        (("hip_r", "knee_r", "foot_r"), PARTS["right_leg"]),
+    )
+    for names, color in segment_groups:
+        if not all(name in frame.joints for name in names):
+            continue
+        _line(draw, frame.joints[names[0]], frame.joints[names[1]], color, 5)
+        _line(draw, frame.joints[names[1]], frame.joints[names[2]], color, 5)
+        for name in names[1:]:
+            x, y = _xy(frame.joints[name])
+            draw.ellipse([x - 3, y - 3, x + 3, y + 3], fill=color)
+
+    _line(draw, frame.weapon.grip_off, frame.weapon.tip, PARTS["weapon"], 3)
+    gx, gy = _xy(frame.weapon.grip_main)
+    draw.ellipse([gx - 2, gy - 2, gx + 2, gy + 2], fill=PARTS["weapon"])
+
+    if scale != 1:
+        image = image.resize(
+            (clip.width * scale, clip.height * scale),
+            Image.Resampling.NEAREST,
+        )
+    return image
+
+
 def make_sheet(
     frames: list[Image.Image],
     columns: int = 4,
@@ -461,8 +536,10 @@ def export_render_set(
     output = Path(output)
     debug_dir = output / "debug_frames"
     control_dir = output / "control_frames"
+    parts_dir = output / "parts_frames"
     debug_dir.mkdir(parents=True, exist_ok=True)
     control_dir.mkdir(parents=True, exist_ok=True)
+    parts_dir.mkdir(parents=True, exist_ok=True)
 
     body_report = analyze_body_kinematics(clip)
     weapon_report = analyze_weapon_dynamics(clip)
@@ -473,6 +550,7 @@ def export_render_set(
 
     debug: list[Image.Image] = []
     control: list[Image.Image] = []
+    parts: list[Image.Image] = []
     for index, frame in enumerate(clip.frames):
         debug_frame = render_debug_frame(
             clip,
@@ -485,15 +563,20 @@ def export_render_set(
             history=clip.frames[: index + 1],
         )
         control_frame = render_control_frame(clip, frame, scale=1)
+        parts_frame = render_parts_frame(clip, frame, scale=1)
         debug_frame.save(debug_dir / f"frame_{index:02d}.png")
         control_frame.save(control_dir / f"frame_{index:02d}.png")
+        parts_frame.save(parts_dir / f"frame_{index:02d}.png")
         debug.append(debug_frame)
         control.append(control_frame)
+        parts.append(parts_frame)
 
     debug_sheet = make_sheet(debug, columns=columns)
     control_sheet = make_sheet(control, columns=columns)
+    parts_sheet = make_sheet(parts, columns=columns)
     debug_sheet.save(output / "debug_sheet.png")
     control_sheet.save(output / "control_sheet.png")
+    parts_sheet.save(output / "parts_sheet.png")
 
     durations = _gif_durations_ms(clip)
 
@@ -504,6 +587,7 @@ def export_render_set(
     control_scale = max(4, scale)
     debug_preview = [_scaled(frame, debug_scale) for frame in debug]
     control_preview = [_scaled(frame, control_scale) for frame in control]
+    parts_preview = [_scaled(frame, control_scale) for frame in parts]
 
     debug_preview[0].save(
         output / "debug_preview.gif",
@@ -521,9 +605,18 @@ def export_render_set(
         loop=0,
         disposal=2,
     )
+    parts_preview[0].save(
+        output / "parts_preview.gif",
+        save_all=True,
+        append_images=parts_preview[1:],
+        duration=durations,
+        loop=0,
+        disposal=2,
+    )
 
     _scaled(debug_sheet, debug_scale).save(output / "debug_sheet.preview.png")
     _scaled(control_sheet, control_scale).save(output / "control_sheet.preview.png")
+    _scaled(parts_sheet, control_scale).save(output / "parts_sheet.preview.png")
 
     # Side-by-side review GIF at the larger debug scale. Useful for checking
     # that the mannequin still matches the solved skeleton.
