@@ -116,7 +116,7 @@ def stop_indices(clip: MotionClip) -> set[int]:
     return {
         index
         for index, frame in enumerate(clip.frames)
-        if frame.kinematic_stop
+        if getattr(frame, "kinematic_stop", False)
     }
 
 
