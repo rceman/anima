@@ -15,12 +15,16 @@ def _validate_times(count: int, times: list[float]) -> None:
             raise ValueError("Derivative timestamps must be strictly increasing")
 
 
-def vec_derivative_times(values: list[Vec2], times: list[float]) -> list[Vec2]:
+def vec_derivative_times(
+    values: list[Vec2],
+    times: list[float],
+    zero_indices: set[int] | None = None,
+) -> list[Vec2]:
     """Finite-difference derivative for non-uniform timestamps.
 
     Endpoints use one-sided secants. Internal samples use the secant spanning
-    their immediate neighbors, which is stable for motion-analysis diagnostics
-    and correctly respects uneven pose timing.
+    their immediate neighbors. Explicit stop indices override the inferred
+    derivative so a held guard/rest pose has exactly zero velocity.
     """
     count = len(values)
     _validate_times(count, times)
@@ -38,10 +42,18 @@ def vec_derivative_times(values: list[Vec2], times: list[float]) -> list[Vec2]:
     out.append(
         (values[-1] - values[-2]) * (1.0 / (times[-1] - times[-2]))
     )
+
+    for index in zero_indices or set():
+        if 0 <= index < len(out):
+            out[index] = Vec2(0.0, 0.0)
     return out
 
 
-def scalar_derivative_times(values: list[float], times: list[float]) -> list[float]:
+def scalar_derivative_times(
+    values: list[float],
+    times: list[float],
+    zero_indices: set[int] | None = None,
+) -> list[float]:
     """Finite-difference scalar derivative for non-uniform timestamps."""
     count = len(values)
     _validate_times(count, times)
@@ -61,6 +73,10 @@ def scalar_derivative_times(values: list[float], times: list[float]) -> list[flo
     out.append(
         (values[-1] - values[-2]) / (times[-1] - times[-2])
     )
+
+    for index in zero_indices or set():
+        if 0 <= index < len(out):
+            out[index] = 0.0
     return out
 
 
@@ -96,12 +112,24 @@ def _angle(a: Vec2, b: Vec2) -> float:
     return math.atan2(-delta.y, delta.x)
 
 
-def analyze_joint_kinematics(clip: MotionClip, pixels_per_meter: float) -> dict[str, Any]:
+def stop_indices(clip: MotionClip) -> set[int]:
+    return {
+        index
+        for index, frame in enumerate(clip.frames)
+        if frame.kinematic_stop
+    }
+
+
+def analyze_joint_kinematics(
+    clip: MotionClip,
+    pixels_per_meter: float,
+) -> dict[str, Any]:
     """Compute position/velocity/acceleration/jerk for every common joint."""
     if not clip.frames:
         return {"joints": {}, "bones": {}}
 
     times = clip.times_s()
+    stops = stop_indices(clip)
     ppm = max(pixels_per_meter, 1e-9)
     common = set(clip.frames[0].joints)
     for frame in clip.frames[1:]:
@@ -111,7 +139,7 @@ def analyze_joint_kinematics(clip: MotionClip, pixels_per_meter: float) -> dict[
     for name in sorted(common):
         pos_px = [frame.joints[name] for frame in clip.frames]
         pos_m = [Vec2(point.x / ppm, point.y / ppm) for point in pos_px]
-        velocity = vec_derivative_times(pos_m, times)
+        velocity = vec_derivative_times(pos_m, times, stops)
         acceleration = vec_derivative_times(velocity, times)
         jerk = vec_derivative_times(acceleration, times)
 
@@ -121,6 +149,7 @@ def analyze_joint_kinematics(clip: MotionClip, pixels_per_meter: float) -> dict[
                 {
                     "frame": frame.frame,
                     "time_s": times[index],
+                    "kinematic_stop": frame.kinematic_stop,
                     "position_px": pos_px[index].as_list(),
                     "velocity_m_s": velocity[index].as_list(),
                     "speed_m_s": velocity[index].length(),
@@ -134,7 +163,9 @@ def analyze_joint_kinematics(clip: MotionClip, pixels_per_meter: float) -> dict[
         joints_report[name] = {
             "frames": frames,
             "max_speed_m_s": max(item["speed_m_s"] for item in frames),
-            "max_acceleration_m_s2": max(item["acceleration_mag_m_s2"] for item in frames),
+            "max_acceleration_m_s2": max(
+                item["acceleration_mag_m_s2"] for item in frames
+            ),
             "max_jerk_m_s3": max(item["jerk_mag_m_s3"] for item in frames),
         }
 
@@ -144,9 +175,15 @@ def analyze_joint_kinematics(clip: MotionClip, pixels_per_meter: float) -> dict[
             continue
 
         angles = unwrap_angles(
-            [_angle(frame.joints[bone.parent], frame.joints[bone.child]) for frame in clip.frames]
+            [
+                _angle(
+                    frame.joints[bone.parent],
+                    frame.joints[bone.child],
+                )
+                for frame in clip.frames
+            ]
         )
-        omega = scalar_derivative_times(angles, times)
+        omega = scalar_derivative_times(angles, times, stops)
         alpha = scalar_derivative_times(omega, times)
         angular_jerk = scalar_derivative_times(alpha, times)
 
@@ -156,6 +193,7 @@ def analyze_joint_kinematics(clip: MotionClip, pixels_per_meter: float) -> dict[
                 {
                     "frame": frame.frame,
                     "time_s": times[index],
+                    "kinematic_stop": frame.kinematic_stop,
                     "angle_deg": math.degrees(angles[index]),
                     "angular_velocity_deg_s": math.degrees(omega[index]),
                     "angular_acceleration_deg_s2": math.degrees(alpha[index]),
