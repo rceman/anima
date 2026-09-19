@@ -23,11 +23,20 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     preview = Image.open(tmp_path / "control_sheet.preview.png")
     assert preview.size == (2048, 1024)
 
+    parts_sheet = Image.open(tmp_path / "parts_sheet.png")
+    assert parts_sheet.size == (512, 256)
+
+    parts_frame = Image.open(tmp_path / "parts_frames" / "frame_00.png")
+    assert parts_frame.size == (128, 128)
+
     debug_preview = Image.open(tmp_path / "debug_preview.gif")
     assert debug_preview.size == (1024, 1024)
 
     control_preview = Image.open(tmp_path / "control_preview.gif")
     assert control_preview.size == (512, 512)
+
+    parts_preview = Image.open(tmp_path / "parts_preview.gif")
+    assert parts_preview.size == (512, 512)
 
     review_preview = Image.open(tmp_path / "review_preview.gif")
     assert review_preview.size == (2048, 1024)
