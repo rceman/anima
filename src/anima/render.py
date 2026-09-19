@@ -5,8 +5,10 @@ import math
 from PIL import Image, ImageDraw
 
 from .biomechanics import analyze_body_kinematics
+from .contacts import contact_mode
 from .dynamics import analyze_weapon_dynamics
 from .model import FramePose, MotionClip, Vec2
+from .system_dynamics import analyze_system_dynamics
 
 # Colorblind-safe debug palette. Marker shapes are also different so color is
 # never the only left/right cue.
@@ -21,6 +23,9 @@ DEBUG = {
     "velocity": "#00E5FF",
     "acceleration": "#FFD166",
     "support": "#8A98A6",
+    "system": "#B3FFFC",
+    "force": "#F5F5F5",
+    "pole": "#B0BEC5",
 }
 CONTROL = {
     "background": "#1E252A",
@@ -69,6 +74,7 @@ def render_debug_frame(
     scale: int = 4,
     body_diag: dict | None = None,
     weapon_diag: dict | None = None,
+    system_diag: dict | None = None,
 ) -> Image.Image:
     image = Image.new("RGB", (clip.width, clip.height), DEBUG["background"])
     draw = ImageDraw.Draw(image)
@@ -125,6 +131,28 @@ def render_debug_frame(
             fill=DEBUG["joint"],
         )
 
+
+    # IK pole targets: small X markers connected to the solved elbow/knee.
+    # These make bend-side mistakes visible even when the final joint still
+    # reaches its target.
+    for name, pole in frame.ik_poles.items():
+        if name not in frame.joints:
+            continue
+        px, py = _xy(pole)
+        draw.line([(px - 2, py - 2), (px + 2, py + 2)], fill=DEBUG["pole"], width=1)
+        draw.line([(px - 2, py + 2), (px + 2, py - 2)], fill=DEBUG["pole"], width=1)
+        draw.line([_xy(frame.joints[name]), (px, py)], fill=DEBUG["pole"], width=1)
+
+    # Explicit contact-mode labels. P = planted world-space anchor,
+    # G = grounded/sliding, F = free.
+    for foot_name in ("foot_l", "foot_r"):
+        if foot_name not in frame.joints:
+            continue
+        mode = contact_mode(frame.contacts.get(foot_name))
+        marker = {"planted": "P", "grounded": "G", "free": "F"}[mode]
+        fx, fy = _xy(frame.joints[foot_name])
+        draw.text((fx - 2, fy + 3), marker, fill=DEBUG["ground"])
+
     # Physics overlay. Color is redundant with labels/shapes so the diagnostics
     # remain readable with red/green color-vision deficiencies.
     if body_diag:
@@ -172,6 +200,37 @@ def render_debug_frame(
         omega = float(weapon_diag.get("angular_velocity_deg_s", 0.0))
         torque = float(weapon_diag.get("estimated_torque_nm", 0.0))
         draw.text((3, 23), f"SWORD w {omega:.0f}deg/s  T {torque:.1f}Nm", fill=DEBUG["weapon"])
+
+
+    if system_diag:
+        system_com_data = system_diag.get("system_com_px")
+        if system_com_data:
+            sys_com = Vec2(float(system_com_data[0]), float(system_com_data[1]))
+            sx, sy = _xy(sys_com)
+            draw.polygon(
+                [(sx, sy - 4), (sx + 4, sy), (sx, sy + 4), (sx - 4, sy)],
+                outline=DEBUG["system"],
+            )
+            draw.text((sx + 5, sy + 2), "SYS", fill=DEBUG["system"])
+
+        grf = system_diag.get("ground_reaction_force")
+        support = system_diag.get("support")
+        if grf and support:
+            ground_start = Vec2(
+                (float(support["min_x"]) + float(support["max_x"])) * 0.5,
+                clip.ground_y,
+            )
+            # Visual diagnostic scale only; labels carry the actual values.
+            force_vec = Vec2(
+                float(grf["horizontal_n"]) / 150.0,
+                -float(grf["vertical_up_n"]) / 150.0,
+            )
+            _arrow(draw, ground_start, force_vec, DEBUG["force"], 1)
+            draw.text(
+                (3, 33),
+                f"GRF {float(grf['magnitude_n']):.0f}N mu {float(grf['required_friction_ratio']):.2f}",
+                fill=DEBUG["force"],
+            )
 
     # Root/pelvis anchor: diamond. This makes root drift immediately visible.
     rx, ry = _xy(frame.root)
@@ -316,8 +375,10 @@ def export_render_set(
 
     body_report = analyze_body_kinematics(clip)
     weapon_report = analyze_weapon_dynamics(clip)
+    system_report = analyze_system_dynamics(clip, body_report, weapon_report)
     body_by_frame = {item["frame"]: item for item in body_report["frames"]}
     weapon_by_frame = {item["frame"]: item for item in weapon_report["frames"]}
+    system_by_frame = {item["frame"]: item for item in system_report["frames"]}
 
     debug: list[Image.Image] = []
     control: list[Image.Image] = []
@@ -328,6 +389,7 @@ def export_render_set(
             scale=1,
             body_diag=body_by_frame.get(frame.frame),
             weapon_diag=weapon_by_frame.get(frame.frame),
+            system_diag=system_by_frame.get(frame.frame),
         )
         control_frame = render_control_frame(clip, frame, scale=1)
         debug_frame.save(debug_dir / f"frame_{index:02d}.png")
