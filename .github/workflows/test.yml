@@ -14,10 +14,11 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install -e '.[dev]'
       - run: pytest -q
-      - run: anima compile examples/twohand_sword_slash/motion.json --output /tmp/anima-example --scale 1
+      - run: anima compile examples/twohand_sword_slash/motion.json --output /tmp/anima-example --scale 1 --auto-retime 2 --strict-physics
       - run: anima retime examples/twohand_sword_slash/motion.json --output /tmp/anima-example/motion.retimed.json --normalize --iterations 2
       - name: Physics summary
         run: |
+          cat /tmp/anima-example/diagnostics_summary.json
           cat /tmp/anima-example/physics_validation.json
           cat /tmp/anima-example/timing_recommendation.json
       - name: Upload canonical example diagnostics
