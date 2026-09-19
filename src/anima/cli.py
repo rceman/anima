@@ -4,9 +4,11 @@ import argparse
 import json
 from pathlib import Path
 
+from .analysis import analyze_motion
 from .compiler import compile_motion
 from .constraints import normalize_clip, validate_clip
 from .model import MotionClip
+from .timeline import densify_clip
 
 
 def _cmd_compile(args: argparse.Namespace) -> int:
@@ -32,6 +34,17 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     }
     print(json.dumps(payload, indent=2))
     return 0 if report.ok else 2
+
+
+
+def _cmd_analyze(args: argparse.Namespace) -> int:
+    clip = MotionClip.load(args.input)
+    clip = densify_clip(clip)
+    if args.normalize:
+        clip = normalize_clip(clip)
+    report = analyze_motion(clip)
+    print(json.dumps(report, indent=2))
+    return 0 if report["physics_validation"]["ok"] else 2
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -64,6 +77,14 @@ def build_parser() -> argparse.ArgumentParser:
     validate_cmd.add_argument("input", type=Path)
     validate_cmd.add_argument("--normalize", action="store_true")
     validate_cmd.set_defaults(func=_cmd_validate)
+
+    analyze_cmd = sub.add_parser(
+        "analyze",
+        help="Print full dynamics, physics validation, and timing analysis",
+    )
+    analyze_cmd.add_argument("input", type=Path)
+    analyze_cmd.add_argument("--normalize", action="store_true")
+    analyze_cmd.set_defaults(func=_cmd_analyze)
     return parser
 
 
