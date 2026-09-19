@@ -18,6 +18,7 @@ def _cmd_compile(args: argparse.Namespace) -> int:
         args.output,
         scale=args.scale,
         strict_physics=args.strict_physics,
+        auto_retime_iterations=args.auto_retime,
     )
     print(f"compiled: {args.output}")
     print(f"validation: {'PASS' if ok else 'FAIL'}")
@@ -109,6 +110,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--strict-physics",
         action="store_true",
         help="Fail compilation on hard physics plausibility issues",
+    )
+    compile_cmd.add_argument(
+        "--auto-retime",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Run N physics-informed timing refinement passes before rendering",
     )
     compile_cmd.set_defaults(func=_cmd_compile)
 
