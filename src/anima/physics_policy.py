@@ -9,6 +9,7 @@ HARD_CODES = {
     "implausible_braking_torque",
     "insufficient_follow_through",
     "friction_limit_exceeded",
+    "joint_limit_violation",
 }
 
 SOFT_CODES = {
