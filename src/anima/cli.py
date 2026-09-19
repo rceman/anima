@@ -8,6 +8,7 @@ from .analysis import analyze_motion
 from .compiler import compile_motion
 from .constraints import normalize_clip, validate_clip
 from .model import MotionClip
+from .post_validate import validate_rendered_sheet
 from .retime_apply import auto_retime
 from .timeline import densify_clip
 
@@ -87,6 +88,25 @@ def _cmd_retime(args: argparse.Namespace) -> int:
     return 0
 
 
+
+def _cmd_verify_render(args: argparse.Namespace) -> int:
+    clip = MotionClip.load(args.motion)
+    clip = normalize_clip(densify_clip(clip))
+    report = validate_rendered_sheet(
+        args.sheet,
+        clip,
+        columns=args.columns,
+    )
+
+    payload = json.dumps(report, indent=2)
+    if args.output:
+        args.output.write_text(payload + "\n", encoding="utf-8")
+        print(f"render validation: {args.output}")
+    else:
+        print(payload)
+    return 0 if report["ok"] else 2
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="anima",
@@ -149,6 +169,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Return failure if hard physics issues remain after retiming",
     )
     retime_cmd.set_defaults(func=_cmd_retime)
+
+    verify_cmd = sub.add_parser(
+        "verify-render",
+        help="Compare a rendered spritesheet against solved motion geometry",
+    )
+    verify_cmd.add_argument("motion", type=Path)
+    verify_cmd.add_argument("sheet", type=Path)
+    verify_cmd.add_argument("--columns", type=int, default=4)
+    verify_cmd.add_argument("--output", "-o", type=Path)
+    verify_cmd.set_defaults(func=_cmd_verify_render)
     return parser
 
 
