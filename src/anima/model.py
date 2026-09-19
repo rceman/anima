@@ -1,0 +1,168 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+import json
+import math
+from pathlib import Path
+from typing import Any
+
+
+@dataclass(frozen=True)
+class Vec2:
+    x: float
+    y: float
+
+    def __add__(self, other: "Vec2") -> "Vec2":
+        return Vec2(self.x + other.x, self.y + other.y)
+
+    def __sub__(self, other: "Vec2") -> "Vec2":
+        return Vec2(self.x - other.x, self.y - other.y)
+
+    def __mul__(self, scalar: float) -> "Vec2":
+        return Vec2(self.x * scalar, self.y * scalar)
+
+    def length(self) -> float:
+        return math.hypot(self.x, self.y)
+
+    def normalized(self, fallback: "Vec2" | None = None) -> "Vec2":
+        length = self.length()
+        if length <= 1e-9:
+            return fallback or Vec2(1.0, 0.0)
+        return Vec2(self.x / length, self.y / length)
+
+    def distance_to(self, other: "Vec2") -> float:
+        return (self - other).length()
+
+    def rounded(self) -> "Vec2":
+        return Vec2(round(self.x), round(self.y))
+
+    def as_list(self) -> list[float]:
+        return [self.x, self.y]
+
+    @classmethod
+    def from_any(cls, value: Any) -> "Vec2":
+        return cls(float(value[0]), float(value[1]))
+
+
+@dataclass
+class WeaponPose:
+    grip_main: Vec2
+    grip_off: Vec2
+    tip: Vec2
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "WeaponPose":
+        return cls(
+            grip_main=Vec2.from_any(data["grip_main"]),
+            grip_off=Vec2.from_any(data["grip_off"]),
+            tip=Vec2.from_any(data["tip"]),
+        )
+
+    def to_dict(self) -> dict[str, list[float]]:
+        return {
+            "grip_main": self.grip_main.as_list(),
+            "grip_off": self.grip_off.as_list(),
+            "tip": self.tip.as_list(),
+        }
+
+
+@dataclass
+class FramePose:
+    frame: int
+    root: Vec2
+    joints: dict[str, Vec2]
+    weapon: WeaponPose
+    contacts: dict[str, bool] = field(default_factory=dict)
+    label: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "FramePose":
+        return cls(
+            frame=int(data["frame"]),
+            root=Vec2.from_any(data["root"]),
+            joints={name: Vec2.from_any(point) for name, point in data["joints"].items()},
+            weapon=WeaponPose.from_dict(data["weapon"]),
+            contacts={k: bool(v) for k, v in data.get("contacts", {}).items()},
+            label=data.get("label"),
+        )
+
+    def shifted(self, delta: Vec2) -> "FramePose":
+        return FramePose(
+            frame=self.frame,
+            root=self.root + delta,
+            joints={name: point + delta for name, point in self.joints.items()},
+            weapon=WeaponPose(
+                self.weapon.grip_main + delta,
+                self.weapon.grip_off + delta,
+                self.weapon.tip + delta,
+            ),
+            contacts=dict(self.contacts),
+            label=self.label,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "frame": self.frame,
+            "root": self.root.as_list(),
+            "joints": {name: point.as_list() for name, point in self.joints.items()},
+            "weapon": self.weapon.to_dict(),
+            "contacts": dict(self.contacts),
+        }
+        if self.label:
+            out["label"] = self.label
+        return out
+
+
+@dataclass
+class MotionClip:
+    width: int
+    height: int
+    ground_y: float
+    fps: float
+    rig: str
+    frames: list[FramePose]
+    primary_hand: str = "hand_r"
+    secondary_hand: str = "hand_l"
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "MotionClip":
+        canvas = data["canvas"]
+        timing = data.get("timing", {})
+        grip = data.get("grip", {})
+        return cls(
+            width=int(canvas["width"]),
+            height=int(canvas["height"]),
+            ground_y=float(canvas["ground_y"]),
+            fps=float(timing.get("fps", 12.0)),
+            rig=str(data.get("rig", "humanoid_twohand_sword_v1")),
+            frames=[FramePose.from_dict(frame) for frame in data["frames"]],
+            primary_hand=str(grip.get("primary_hand", "hand_r")),
+            secondary_hand=str(grip.get("secondary_hand", "hand_l")),
+            metadata=dict(data.get("metadata", {})),
+        )
+
+    @classmethod
+    def load(cls, path: str | Path) -> "MotionClip":
+        return cls.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "version": 1,
+            "canvas": {
+                "width": self.width,
+                "height": self.height,
+                "ground_y": self.ground_y,
+            },
+            "rig": self.rig,
+            "timing": {"fps": self.fps},
+            "grip": {
+                "primary_hand": self.primary_hand,
+                "secondary_hand": self.secondary_hand,
+            },
+            "metadata": self.metadata,
+            "frames": [frame.to_dict() for frame in self.frames],
+        }
+
+    def save(self, path: str | Path) -> None:
+        Path(path).write_text(json.dumps(self.to_dict(), indent=2) + "\n", encoding="utf-8")
