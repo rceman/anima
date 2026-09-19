@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rceman/anima/schema/motion-v1.schema.json",
+  "title": "Anima Motion Clip v1",
+  "type": "object",
+  "required": ["version", "canvas", "rig", "timing", "frames"],
+  "properties": {
+    "version": {"const": 1},
+    "canvas": {
+      "type": "object",
+      "required": ["width", "height", "ground_y"],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1},
+        "height": {"type": "integer", "minimum": 1},
+        "ground_y": {"type": "number"}
+      },
+      "additionalProperties": false
+    },
+    "rig": {"type": "string", "minLength": 1},
+    "timing": {
+      "type": "object",
+      "required": ["fps"],
+      "properties": {
+        "fps": {"type": "number", "exclusiveMinimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "grip": {
+      "type": "object",
+      "properties": {
+        "primary_hand": {"type": "string"},
+        "secondary_hand": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "metadata": {"type": "object"},
+    "dynamics": {"type": "object"},
+    "frames": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["frame", "root", "joints", "weapon"],
+        "properties": {
+          "frame": {"type": "integer", "minimum": 0},
+          "time_s": {"type": "number", "minimum": 0},
+          "label": {"type": "string"},
+          "root": {"$ref": "#/$defs/vec2"},
+          "joints": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/vec2"}
+          },
+          "weapon": {
+            "type": "object",
+            "required": ["grip_main", "grip_off", "tip"],
+            "properties": {
+              "grip_main": {"$ref": "#/$defs/vec2"},
+              "grip_off": {"$ref": "#/$defs/vec2"},
+              "tip": {"$ref": "#/$defs/vec2"}
+            },
+            "additionalProperties": false
+          },
+          "contacts": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                {"type": "boolean"},
+                {"enum": ["planted", "grounded", "free"]}
+              ]
+            }
+          },
+          "ik_poles": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/vec2"}
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "vec2": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "number"},
+        {"type": "number"}
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    }
+  }
+}
