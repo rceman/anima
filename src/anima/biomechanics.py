@@ -6,7 +6,12 @@ from typing import Any
 
 from .anatomy import analyze_joint_limits
 from .contacts import contact_mode, is_ground_contact, is_planted
-from .kinematics import analyze_joint_kinematics, scalar_derivative, unwrap_angles, vec_derivative
+from .kinematics import (
+    analyze_joint_kinematics,
+    scalar_derivative_times,
+    unwrap_angles,
+    vec_derivative_times,
+)
 from .model import FramePose, MotionClip, Vec2
 
 
@@ -107,23 +112,23 @@ def analyze_body_kinematics(clip: MotionClip) -> dict[str, Any]:
     support polygon, friction demand, and momentum continuity.
     """
     profile = BodyDynamicsProfile.from_clip(clip)
-    dt = 1.0 / clip.fps
+    times = clip.times_s()
     ppm = max(profile.pixels_per_meter, 1e-9)
 
     com_px = [estimate_com(frame) for frame in clip.frames]
     com_m = [Vec2(point.x / ppm, point.y / ppm) for point in com_px]
-    velocity = vec_derivative(com_m, dt)
-    acceleration = vec_derivative(velocity, dt)
-    jerk = vec_derivative(acceleration, dt)
+    velocity = vec_derivative_times(com_m, times)
+    acceleration = vec_derivative_times(velocity, times)
+    jerk = vec_derivative_times(acceleration, times)
 
     root_m = [Vec2(frame.root.x / ppm, frame.root.y / ppm) for frame in clip.frames]
-    root_velocity = vec_derivative(root_m, dt)
-    root_acceleration = vec_derivative(root_velocity, dt)
+    root_velocity = vec_derivative_times(root_m, times)
+    root_acceleration = vec_derivative_times(root_velocity, times)
 
     torso_angles = unwrap_angles([_torso_angle(frame) for frame in clip.frames])
-    torso_omega = scalar_derivative(torso_angles, dt)
-    torso_alpha = scalar_derivative(torso_omega, dt)
-    torso_jerk = scalar_derivative(torso_alpha, dt)
+    torso_omega = scalar_derivative_times(torso_angles, times)
+    torso_alpha = scalar_derivative_times(torso_omega, times)
+    torso_jerk = scalar_derivative_times(torso_alpha, times)
 
     warnings: list[dict[str, Any]] = []
     frame_reports: list[dict[str, Any]] = []
@@ -261,6 +266,7 @@ def analyze_body_kinematics(clip: MotionClip) -> dict[str, Any]:
         frame_reports.append(
             {
                 "frame": frame.frame,
+                "time_s": times[index],
                 "label": frame.label,
                 "com_px": com_px[index].as_list(),
                 "com_velocity_m_s": velocity[index].as_list(),
