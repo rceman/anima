@@ -11,6 +11,7 @@ from .model import MotionClip
 from .physics_policy import evaluate_physics
 from .render import export_render_set
 from .retiming import recommend_timing
+from .system_dynamics import analyze_system_dynamics
 from .timeline import densify_clip
 
 
@@ -38,9 +39,16 @@ def compile_motion(
         encoding="utf-8",
     )
 
+    body_report = analyze_body_kinematics(normalized)
+    weapon_report = analyze_weapon_dynamics(normalized)
     dynamics_report = {
-        "weapon": analyze_weapon_dynamics(normalized),
-        "body": analyze_body_kinematics(normalized),
+        "weapon": weapon_report,
+        "body": body_report,
+        "system": analyze_system_dynamics(
+            normalized,
+            body_report,
+            weapon_report,
+        ),
     }
     (output / "dynamics.json").write_text(
         json.dumps(dynamics_report, indent=2) + "\n",
