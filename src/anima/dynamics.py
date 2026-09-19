@@ -4,7 +4,7 @@ from dataclasses import dataclass, asdict
 import math
 from typing import Any
 
-from .kinematics import scalar_derivative, vec_derivative
+from .kinematics import scalar_derivative_times, vec_derivative_times
 from .model import FramePose, MotionClip, Vec2
 
 
@@ -85,11 +85,11 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
     energy and follow-through.
     """
     profile = WeaponDynamicsProfile.from_clip(clip)
-    dt = 1.0 / clip.fps
+    times = clip.times_s()
     angles = unwrap_angles([sword_angle(frame) for frame in clip.frames])
 
-    omega = scalar_derivative(angles, dt)
-    alpha = scalar_derivative(omega, dt)
+    omega = scalar_derivative_times(angles, times)
+    alpha = scalar_derivative_times(omega, times)
     inertia = profile.inertia_kg_m2
     torque = [
         inertia * alpha_i + profile.damping_nm_per_rad_s * omega_i
@@ -109,9 +109,9 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
         for frame in clip.frames
     ]
     com_m = [Vec2(point.x / ppm, point.y / ppm) for point in com_px]
-    com_velocity = vec_derivative(com_m, dt)
-    com_acceleration = vec_derivative(com_velocity, dt)
-    com_jerk = vec_derivative(com_acceleration, dt)
+    com_velocity = vec_derivative_times(com_m, times)
+    com_acceleration = vec_derivative_times(com_velocity, times)
+    com_jerk = vec_derivative_times(com_acceleration, times)
 
     handle_force: list[Vec2] = []
     reaction_force: list[Vec2] = []
@@ -245,6 +245,7 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
         frames.append(
             {
                 "frame": frame.frame,
+                "time_s": times[i],
                 "label": frame.label,
                 "angle_deg": math.degrees(angles[i]),
                 "angular_velocity_deg_s": math.degrees(omega[i]),
