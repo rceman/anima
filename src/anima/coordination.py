@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from .kinematics import vec_derivative_times
+from .kinematics import stop_indices, vec_derivative_times
 from .model import MotionClip, Vec2
 from .rig import RestGeometry
 
@@ -72,6 +72,7 @@ def analyze_coordination(
     profile = CoordinationProfile.from_clip(clip)
     rest = RestGeometry.from_frame(clip.frames[0])
     times = clip.times_s()
+    stops = stop_indices(clip)
     warnings: list[dict[str, Any]] = []
     frame_reports: list[dict[str, Any]] = []
 
@@ -149,8 +150,8 @@ def analyze_coordination(
     )
     hand_m = [Vec2(p.x / body_ppm, p.y / body_ppm) for p in hand_midpoints]
     tip_m = [Vec2(p.x / body_ppm, p.y / body_ppm) for p in sword_tips]
-    hand_velocity = vec_derivative_times(hand_m, times)
-    tip_velocity = vec_derivative_times(tip_m, times)
+    hand_velocity = vec_derivative_times(hand_m, times, stops)
+    tip_velocity = vec_derivative_times(tip_m, times, stops)
 
     root_speeds = [
         Vec2.from_any(item.get("root_velocity_m_s", [0.0, 0.0])).length()
