@@ -4,7 +4,7 @@ from dataclasses import dataclass, asdict
 import math
 from typing import Any
 
-from .kinematics import vec_derivative
+from .kinematics import scalar_derivative, vec_derivative
 from .model import FramePose, MotionClip, Vec2
 
 
@@ -88,19 +88,17 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
     dt = 1.0 / clip.fps
     angles = unwrap_angles([sword_angle(frame) for frame in clip.frames])
 
-    omega: list[float] = [0.0] * len(angles)
-    alpha: list[float] = [0.0] * len(angles)
-    torque: list[float] = [0.0] * len(angles)
-    rotational_energy: list[float] = [0.0] * len(angles)
-
-    for i in range(1, len(angles)):
-        omega[i] = (angles[i] - angles[i - 1]) / dt
-
+    omega = scalar_derivative(angles, dt)
+    alpha = scalar_derivative(omega, dt)
     inertia = profile.inertia_kg_m2
-    for i in range(1, len(angles)):
-        alpha[i] = (omega[i] - omega[i - 1]) / dt
-        torque[i] = inertia * alpha[i] + profile.damping_nm_per_rad_s * omega[i]
-        rotational_energy[i] = 0.5 * inertia * omega[i] * omega[i]
+    torque = [
+        inertia * alpha_i + profile.damping_nm_per_rad_s * omega_i
+        for alpha_i, omega_i in zip(alpha, omega)
+    ]
+    rotational_energy = [
+        0.5 * inertia * omega_i * omega_i
+        for omega_i in omega
+    ]
 
     body_raw = clip.dynamics.get("body", {})
     ppm = max(float(body_raw.get("pixels_per_meter", 40.0)), 1e-9)
