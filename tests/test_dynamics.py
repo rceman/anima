@@ -75,3 +75,43 @@ def test_enforced_drive_torque_limit_is_reported():
     codes = {warning["code"] for warning in report["warnings"]}
 
     assert "drive_torque_limit_exceeded" in codes
+
+
+def test_collision_model_reports_expected_post_impact_response():
+    clip = clip_for_mass(1.3)
+    clip.dynamics["weapon"].update(
+        {
+            "collision": True,
+            "impact_frame": 1,
+            "target_effective_mass_kg": 5.0,
+            "coefficient_of_restitution": 0.1,
+            "impact_radius_fraction": 0.9,
+        }
+    )
+
+    report = analyze_weapon_dynamics(clip)
+    collision = report["collision_response"]
+
+    assert collision is not None
+    assert collision["impact_frame"] == 1
+    assert collision["impulse_ns"] >= 0
+    assert "expected_omega_after_deg_s" in collision
+
+
+def test_enforced_collision_mismatch_is_reported():
+    clip = clip_for_mass(1.3)
+    clip.dynamics["weapon"].update(
+        {
+            "collision": True,
+            "impact_frame": 1,
+            "target_effective_mass_kg": 1000.0,
+            "coefficient_of_restitution": 0.0,
+            "collision_velocity_tolerance_fraction": 0.01,
+            "enforce_collision_response": True,
+        }
+    )
+
+    report = analyze_weapon_dynamics(clip)
+    codes = {warning["code"] for warning in report["warnings"]}
+
+    assert "collision_response_mismatch" in codes
