@@ -100,3 +100,40 @@ def test_segment_recommendation_maps_reasons_to_phase():
     assert follow_segment["from_label"] == "impact"
     assert follow_segment["to_label"] == "follow"
     assert follow_segment["recommended_frame_span_same_fps"] > 2
+
+
+def test_sampled_violation_affects_both_adjacent_keyframe_intervals():
+    clip = MotionClip(
+        width=128,
+        height=128,
+        ground_y=108,
+        fps=10,
+        rig="test",
+        frames=[
+            SimpleNamespace(frame=0, label="a"),
+            SimpleNamespace(frame=1, label="b"),
+            SimpleNamespace(frame=2, label="c"),
+        ],
+    )
+    report = {
+        "weapon": {
+            "profile": {
+                "inertia_kg_m2": 1.0,
+                "damping_nm_per_rad_s": 0.0,
+                "max_drive_torque_nm": 1.0,
+            },
+            "frames": [
+                {
+                    "frame": 1,
+                    "angular_velocity_deg_s": 0.0,
+                    "angular_acceleration_deg_s2": 1000.0,
+                }
+            ],
+        },
+        "body": {"profile": {}, "frames": []},
+        "system": {"profile": {}, "frames": []},
+    }
+
+    timing = recommend_timing(clip, report)
+    assert timing["segments"][0]["recommended_time_scale"] > 1.0
+    assert timing["segments"][1]["recommended_time_scale"] > 1.0
