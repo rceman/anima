@@ -1,4 +1,4 @@
-from anima.constraints import normalize_clip, validate_clip
+from anima.constraints import normalize_clip, solve_two_bone, validate_clip
 from anima.model import FramePose, MotionClip, Vec2, WeaponPose
 
 
@@ -28,8 +28,6 @@ def make_clip() -> MotionClip:
         {"foot_l": True, "foot_r": True},
     )
 
-    # Deliberately shift the pose up and distort the sword. The compiler
-    # must restore ground contact and rigid weapon geometry.
     shifted = frame0.shifted(Vec2(0, -6))
     shifted.frame = 1
     shifted.weapon = WeaponPose(
@@ -83,3 +81,27 @@ def test_grounded_unreachable_foot_is_clamped_along_ground():
 
     assert normalized.frames[1].joints["foot_r"].y == 108
     assert normalized.frames[1].joints["foot_r"].x < 120
+
+
+def test_two_bone_ik_prefers_previous_bend_branch():
+    start = Vec2(0, 0)
+    target = Vec2(8, 0)
+
+    upper_candidate, _, _ = solve_two_bone(
+        start,
+        target,
+        5,
+        5,
+        bend_hint=Vec2(4, 3),
+    )
+    lower_candidate, _, _ = solve_two_bone(
+        start,
+        target,
+        5,
+        5,
+        bend_hint=Vec2(4, 3),
+        previous_mid=Vec2(4, -3),
+    )
+
+    assert upper_candidate.y > 0
+    assert lower_candidate.y < 0
