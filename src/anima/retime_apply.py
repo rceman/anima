@@ -33,6 +33,7 @@ def apply_timing_recommendation(
     clip: MotionClip,
     timing_report: dict[str, Any],
     max_interval_scale: float = 4.0,
+    minimum_active_scale: float = 1.0,
 ) -> MotionClip:
     """Apply physics timing recommendations without changing pose geometry.
 
@@ -47,6 +48,8 @@ def apply_timing_recommendation(
 
     for index, (left, right) in enumerate(zip(clip.frames, clip.frames[1:])):
         scale = _interval_scale(left.frame, right.frame, timing_report)
+        if scale > 1.0:
+            scale = max(scale, minimum_active_scale)
         scale = min(max_interval_scale, max(1.0, scale))
         old_dt = old_times[index + 1] - old_times[index]
         new_times.append(new_times[-1] + old_dt * scale)
@@ -63,6 +66,7 @@ def auto_retime(
     iterations: int = 3,
     tolerance: float = 1.01,
     max_interval_scale: float = 4.0,
+    hard_issue_minimum_scale: float = 1.02,
 ) -> tuple[MotionClip, list[dict[str, Any]]]:
     """Iteratively slow physically over-demanding phases.
 
@@ -106,6 +110,11 @@ def auto_retime(
             current,
             timing,
             max_interval_scale=max_interval_scale,
+            minimum_active_scale=(
+                hard_issue_minimum_scale
+                if not physics_ok
+                else 1.0
+            ),
         )
 
     final_analysis = analyze_motion(current)
