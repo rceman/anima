@@ -188,12 +188,16 @@ class MotionClip:
         If explicit time_s values are present, every frame must define one.
         Otherwise frame_number/fps is the canonical clock.
         """
-        explicit = [frame.time_s is not None for frame in self.frames]
+        explicit = [getattr(frame, "time_s", None) is not None for frame in self.frames]
         if any(explicit) and not all(explicit):
             raise ValueError("Either all frames define time_s or none of them do")
 
         if all(explicit) and self.frames:
-            times = [float(frame.time_s) for frame in self.frames if frame.time_s is not None]
+            times = [
+                float(getattr(frame, "time_s"))
+                for frame in self.frames
+                if getattr(frame, "time_s", None) is not None
+            ]
         else:
             times = [frame.frame / self.fps for frame in self.frames]
 
