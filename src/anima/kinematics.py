@@ -7,36 +7,73 @@ from .model import MotionClip, Vec2
 from .rig import HUMANOID_BONES
 
 
-def vec_derivative(values: list[Vec2], dt: float) -> list[Vec2]:
-    """Finite-difference derivative with central differences internally."""
+def _validate_times(count: int, times: list[float]) -> None:
+    if len(times) != count:
+        raise ValueError("Value/time arrays must have the same length")
+    for previous, current in zip(times, times[1:]):
+        if current <= previous:
+            raise ValueError("Derivative timestamps must be strictly increasing")
+
+
+def vec_derivative_times(values: list[Vec2], times: list[float]) -> list[Vec2]:
+    """Finite-difference derivative for non-uniform timestamps.
+
+    Endpoints use one-sided secants. Internal samples use the secant spanning
+    their immediate neighbors, which is stable for motion-analysis diagnostics
+    and correctly respects uneven pose timing.
+    """
     count = len(values)
+    _validate_times(count, times)
     if count == 0:
         return []
     if count == 1:
         return [Vec2(0.0, 0.0)]
 
-    inv_dt = 1.0 / dt
-    out = [(values[1] - values[0]) * inv_dt]
+    out = [
+        (values[1] - values[0]) * (1.0 / (times[1] - times[0]))
+    ]
     for index in range(1, count - 1):
-        out.append((values[index + 1] - values[index - 1]) * (0.5 * inv_dt))
-    out.append((values[-1] - values[-2]) * inv_dt)
+        dt = times[index + 1] - times[index - 1]
+        out.append((values[index + 1] - values[index - 1]) * (1.0 / dt))
+    out.append(
+        (values[-1] - values[-2]) * (1.0 / (times[-1] - times[-2]))
+    )
     return out
 
 
-def scalar_derivative(values: list[float], dt: float) -> list[float]:
-    """Finite-difference derivative with central differences internally."""
+def scalar_derivative_times(values: list[float], times: list[float]) -> list[float]:
+    """Finite-difference scalar derivative for non-uniform timestamps."""
     count = len(values)
+    _validate_times(count, times)
     if count == 0:
         return []
     if count == 1:
         return [0.0]
 
-    inv_dt = 1.0 / dt
-    out = [(values[1] - values[0]) * inv_dt]
+    out = [
+        (values[1] - values[0]) / (times[1] - times[0])
+    ]
     for index in range(1, count - 1):
-        out.append((values[index + 1] - values[index - 1]) * (0.5 * inv_dt))
-    out.append((values[-1] - values[-2]) * inv_dt)
+        out.append(
+            (values[index + 1] - values[index - 1])
+            / (times[index + 1] - times[index - 1])
+        )
+    out.append(
+        (values[-1] - values[-2]) / (times[-1] - times[-2])
+    )
     return out
+
+
+def vec_derivative(values: list[Vec2], dt: float) -> list[Vec2]:
+    """Finite-difference derivative for uniformly sampled values."""
+    times = [index * dt for index in range(len(values))]
+    return vec_derivative_times(values, times)
+
+
+def scalar_derivative(values: list[float], dt: float) -> list[float]:
+    """Finite-difference scalar derivative for uniformly sampled values."""
+    times = [index * dt for index in range(len(values))]
+    return scalar_derivative_times(values, times)
 
 
 def unwrap_angles(values: list[float]) -> list[float]:
@@ -64,7 +101,7 @@ def analyze_joint_kinematics(clip: MotionClip, pixels_per_meter: float) -> dict[
     if not clip.frames:
         return {"joints": {}, "bones": {}}
 
-    dt = 1.0 / clip.fps
+    times = clip.times_s()
     ppm = max(pixels_per_meter, 1e-9)
     common = set(clip.frames[0].joints)
     for frame in clip.frames[1:]:
@@ -74,15 +111,16 @@ def analyze_joint_kinematics(clip: MotionClip, pixels_per_meter: float) -> dict[
     for name in sorted(common):
         pos_px = [frame.joints[name] for frame in clip.frames]
         pos_m = [Vec2(point.x / ppm, point.y / ppm) for point in pos_px]
-        velocity = vec_derivative(pos_m, dt)
-        acceleration = vec_derivative(velocity, dt)
-        jerk = vec_derivative(acceleration, dt)
+        velocity = vec_derivative_times(pos_m, times)
+        acceleration = vec_derivative_times(velocity, times)
+        jerk = vec_derivative_times(acceleration, times)
 
         frames = []
         for index, frame in enumerate(clip.frames):
             frames.append(
                 {
                     "frame": frame.frame,
+                    "time_s": times[index],
                     "position_px": pos_px[index].as_list(),
                     "velocity_m_s": velocity[index].as_list(),
                     "speed_m_s": velocity[index].length(),
@@ -108,15 +146,16 @@ def analyze_joint_kinematics(clip: MotionClip, pixels_per_meter: float) -> dict[
         angles = unwrap_angles(
             [_angle(frame.joints[bone.parent], frame.joints[bone.child]) for frame in clip.frames]
         )
-        omega = scalar_derivative(angles, dt)
-        alpha = scalar_derivative(omega, dt)
-        angular_jerk = scalar_derivative(alpha, dt)
+        omega = scalar_derivative_times(angles, times)
+        alpha = scalar_derivative_times(omega, times)
+        angular_jerk = scalar_derivative_times(alpha, times)
 
         frames = []
         for index, frame in enumerate(clip.frames):
             frames.append(
                 {
                     "frame": frame.frame,
+                    "time_s": times[index],
                     "angle_deg": math.degrees(angles[index]),
                     "angular_velocity_deg_s": math.degrees(omega[index]),
                     "angular_acceleration_deg_s2": math.degrees(alpha[index]),
