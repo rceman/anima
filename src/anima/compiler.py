@@ -10,6 +10,7 @@ from .handoff import imagegen_prompt
 from .model import MotionClip
 from .physics_policy import evaluate_physics
 from .render import export_render_set
+from .retiming import recommend_timing
 from .timeline import densify_clip
 
 
@@ -49,6 +50,12 @@ def compile_motion(
     physics_report = evaluate_physics(dynamics_report)
     (output / "physics_validation.json").write_text(
         json.dumps(physics_report, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    timing_report = recommend_timing(normalized, dynamics_report)
+    (output / "timing_recommendation.json").write_text(
+        json.dumps(timing_report, indent=2) + "\n",
         encoding="utf-8",
     )
 
