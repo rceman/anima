@@ -10,7 +10,12 @@ def _weapon_scale(weapon: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
     profile = weapon.get("profile", {})
     inertia = float(profile.get("inertia_kg_m2", 0.0))
     damping = float(profile.get("damping_nm_per_rad_s", 0.0))
-    max_torque = float(profile.get("max_braking_torque_nm", 0.0))
+    max_torque = float(
+        profile.get(
+            "max_drive_torque_nm",
+            profile.get("max_braking_torque_nm", 0.0),
+        )
+    )
     if max_torque <= 1e-9:
         return 1.0, []
 
@@ -50,7 +55,7 @@ def _weapon_scale(weapon: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
                 "time_scale": high,
                 "message": (
                     f"Weapon torque needs about {high:.2f}x more time at the "
-                    f"configured {max_torque:.1f} Nm torque limit."
+                    f"configured {max_torque:.1f} Nm drive-torque limit."
                 ),
             }
         )
