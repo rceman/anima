@@ -33,8 +33,15 @@ def solve_two_bone(
     len_a: float,
     len_b: float,
     bend_hint: Vec2,
+    previous_mid: Vec2 | None = None,
 ) -> tuple[Vec2, Vec2, bool]:
-    """Solve a 2-bone chain. Returns (mid, end, reachable)."""
+    """Solve a 2-bone chain with temporal bend continuity.
+
+    A 2D two-bone chain has two valid elbow/knee solutions. Choosing a branch
+    independently per frame causes the classic IK "elbow flip". We generate
+    both solutions and select the one nearest the previous solved joint when
+    available; the authored bend_hint is used for the first frame.
+    """
     delta = target - start
     distance = delta.length()
     min_reach = abs(len_a - len_b) + 1e-6
@@ -49,13 +56,18 @@ def solve_two_bone(
     angle = math.acos(cos_a)
     base = math.atan2(direction.y, direction.x)
 
-    hint_vec = bend_hint - start
-    sign = 1.0 if _cross(direction, hint_vec) >= 0 else -1.0
-    joint_angle = base + sign * angle
-    mid = Vec2(
-        start.x + math.cos(joint_angle) * len_a,
-        start.y + math.sin(joint_angle) * len_a,
-    )
+    candidates: list[Vec2] = []
+    for sign in (1.0, -1.0):
+        joint_angle = base + sign * angle
+        candidates.append(
+            Vec2(
+                start.x + math.cos(joint_angle) * len_a,
+                start.y + math.sin(joint_angle) * len_a,
+            )
+        )
+
+    preferred = previous_mid or bend_hint
+    mid = min(candidates, key=lambda point: point.distance_to(preferred))
     return mid, end, reachable
 
 
@@ -94,6 +106,7 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
 
     rest = RestGeometry.from_frame(clip.frames[0])
     normalized: list[FramePose] = []
+    previous_mids: dict[str, Vec2] = {}
 
     for source in clip.frames:
         frame = source
@@ -130,9 +143,11 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
                     rest.bone_lengths[upper_name],
                     rest.bone_lengths[lower_name],
                     joints[elbow_name],
+                    previous_mid=previous_mids.get(elbow_name),
                 )
                 joints[elbow_name] = elbow
                 joints[hand_name] = hand
+                previous_mids[elbow_name] = elbow
 
         # 4. Ground contacts are exact. Knees are solved while preserving bend direction.
         leg_specs = (
@@ -159,9 +174,11 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
                 rest.bone_lengths[thigh_name],
                 rest.bone_lengths[shin_name],
                 joints[knee_name],
+                previous_mid=previous_mids.get(knee_name),
             )
             joints[knee_name] = knee
             joints[foot_name] = solved_foot
+            previous_mids[knee_name] = knee
 
         normalized.append(
             FramePose(
