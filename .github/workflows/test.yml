@@ -15,3 +15,7 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - run: pytest -q
       - run: anima compile examples/twohand_sword_slash/motion.json --output /tmp/anima-example --scale 1
+      - name: Physics summary
+        run: |
+          cat /tmp/anima-example/physics_validation.json
+          cat /tmp/anima-example/timing_recommendation.json
