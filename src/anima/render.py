@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+import math
 from PIL import Image, ImageDraw
 
+from .biomechanics import analyze_body_kinematics
+from .dynamics import analyze_weapon_dynamics
 from .model import FramePose, MotionClip, Vec2
 
 # Colorblind-safe debug palette. Marker shapes are also different so color is
@@ -15,6 +18,9 @@ DEBUG = {
     "right": "#E69F00",
     "weapon": "#9B8CFF",
     "joint": "#FFFFFF",
+    "velocity": "#00E5FF",
+    "acceleration": "#FFD166",
+    "support": "#8A98A6",
 }
 CONTROL = {
     "background": "#1E252A",
@@ -37,10 +43,32 @@ def _line(
     draw.line([_xy(a), _xy(b)], fill=fill, width=width)
 
 
+def _arrow(
+    draw: ImageDraw.ImageDraw,
+    start: Vec2,
+    delta: Vec2,
+    fill: str,
+    width: int = 1,
+) -> None:
+    end = start + delta
+    draw.line([_xy(start), _xy(end)], fill=fill, width=width)
+    length = delta.length()
+    if length <= 1e-6:
+        return
+    direction = delta * (1.0 / length)
+    normal = Vec2(-direction.y, direction.x)
+    back = end - direction * 4.0
+    left = back + normal * 2.0
+    right = back - normal * 2.0
+    draw.polygon([_xy(end), _xy(left), _xy(right)], fill=fill)
+
+
 def render_debug_frame(
     clip: MotionClip,
     frame: FramePose,
     scale: int = 4,
+    body_diag: dict | None = None,
+    weapon_diag: dict | None = None,
 ) -> Image.Image:
     image = Image.new("RGB", (clip.width, clip.height), DEBUG["background"])
     draw = ImageDraw.Draw(image)
@@ -96,6 +124,54 @@ def render_debug_frame(
             [x - radius, y - radius, x + radius, y + radius],
             fill=DEBUG["joint"],
         )
+
+    # Physics overlay. Color is redundant with labels/shapes so the diagnostics
+    # remain readable with red/green color-vision deficiencies.
+    if body_diag:
+        com_data = body_diag.get("com_px")
+        if com_data:
+            com = Vec2(float(com_data[0]), float(com_data[1]))
+            cx, cy = _xy(com)
+            draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], outline=DEBUG["joint"], width=1)
+            draw.line([(cx - 5, cy), (cx + 5, cy)], fill=DEBUG["joint"], width=1)
+            draw.line([(cx, cy - 5), (cx, cy + 5)], fill=DEBUG["joint"], width=1)
+            draw.text((cx + 5, cy - 8), "COM", fill=DEBUG["joint"])
+
+            velocity = body_diag.get("com_velocity_m_s", [0.0, 0.0])
+            acceleration = body_diag.get("com_acceleration_m_s2", [0.0, 0.0])
+            _arrow(
+                draw,
+                com,
+                Vec2(float(velocity[0]) * 5.0, float(velocity[1]) * 5.0),
+                DEBUG["velocity"],
+                2,
+            )
+            _arrow(
+                draw,
+                com,
+                Vec2(float(acceleration[0]) * 0.25, float(acceleration[1]) * 0.25),
+                DEBUG["acceleration"],
+                1,
+            )
+
+        support = body_diag.get("support")
+        if support:
+            y = round(clip.ground_y) + 2
+            draw.line(
+                [(round(support["min_x"]), y), (round(support["max_x"]), y)],
+                fill=DEBUG["support"],
+                width=2,
+            )
+
+        speed = float(body_diag.get("com_speed_m_s", 0.0))
+        accel = body_diag.get("com_acceleration_m_s2", [0.0, 0.0])
+        accel_mag = math.hypot(float(accel[0]), float(accel[1]))
+        draw.text((3, 13), f"V {speed:.2f}m/s  A {accel_mag:.1f}m/s2", fill=DEBUG["velocity"])
+
+    if weapon_diag:
+        omega = float(weapon_diag.get("angular_velocity_deg_s", 0.0))
+        torque = float(weapon_diag.get("estimated_torque_nm", 0.0))
+        draw.text((3, 23), f"SWORD w {omega:.0f}deg/s  T {torque:.1f}Nm", fill=DEBUG["weapon"])
 
     # Root/pelvis anchor: diamond. This makes root drift immediately visible.
     rx, ry = _xy(frame.root)
@@ -238,10 +314,21 @@ def export_render_set(
     debug_dir.mkdir(parents=True, exist_ok=True)
     control_dir.mkdir(parents=True, exist_ok=True)
 
+    body_report = analyze_body_kinematics(clip)
+    weapon_report = analyze_weapon_dynamics(clip)
+    body_by_frame = {item["frame"]: item for item in body_report["frames"]}
+    weapon_by_frame = {item["frame"]: item for item in weapon_report["frames"]}
+
     debug: list[Image.Image] = []
     control: list[Image.Image] = []
     for index, frame in enumerate(clip.frames):
-        debug_frame = render_debug_frame(clip, frame, scale=1)
+        debug_frame = render_debug_frame(
+            clip,
+            frame,
+            scale=1,
+            body_diag=body_by_frame.get(frame.frame),
+            weapon_diag=weapon_by_frame.get(frame.frame),
+        )
         control_frame = render_control_frame(clip, frame, scale=1)
         debug_frame.save(debug_dir / f"frame_{index:02d}.png")
         control_frame.save(control_dir / f"frame_{index:02d}.png")
