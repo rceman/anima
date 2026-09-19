@@ -299,7 +299,7 @@ def recommend_timing(
             "frame_count": frame_count,
             "duration_s": duration_s,
             "uses_explicit_timestamps": any(
-                frame.time_s is not None
+                getattr(frame, "time_s", None) is not None
                 for frame in clip.frames
             ),
         },
