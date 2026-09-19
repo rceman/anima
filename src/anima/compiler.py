@@ -11,6 +11,7 @@ from .model import MotionClip
 from .physics_policy import evaluate_physics
 from .render import export_render_set
 from .retiming import recommend_timing
+from .strength import analyze_arm_strength
 from .system_dynamics import analyze_system_dynamics
 from .timeline import densify_clip
 
@@ -44,6 +45,7 @@ def compile_motion(
     dynamics_report = {
         "weapon": weapon_report,
         "body": body_report,
+        "strength": analyze_arm_strength(normalized, weapon_report),
         "system": analyze_system_dynamics(
             normalized,
             body_report,
