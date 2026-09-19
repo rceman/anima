@@ -95,9 +95,13 @@ def auto_retime(
                 ),
             }
         )
-        if scale <= tolerance:
+        physics_ok = bool(analysis["physics_validation"]["ok"])
+        if scale <= tolerance and physics_ok:
             break
 
+        # A hard physics failure must not be ignored merely because the
+        # required correction is numerically small (for example friction
+        # ratio 0.817 vs a configured 0.800 limit).
         current = apply_timing_recommendation(
             current,
             timing,
