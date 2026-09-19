@@ -9,6 +9,7 @@ from .handoff import imagegen_prompt
 from .model import MotionClip
 from .render import export_render_set
 from .retime_apply import auto_retime
+from .summary import build_diagnostics_summary
 from .timeline import densify_clip
 
 
@@ -64,6 +65,16 @@ def compile_motion(
     )
     (output / "timing_recommendation.json").write_text(
         json.dumps(timing_report, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    summary = build_diagnostics_summary(
+        normalized,
+        report,
+        analysis,
+    )
+    (output / "diagnostics_summary.json").write_text(
+        json.dumps(summary, indent=2) + "\n",
         encoding="utf-8",
     )
 
