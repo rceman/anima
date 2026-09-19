@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from .kinematics import scalar_derivative_times
+from .kinematics import scalar_derivative_times, stop_indices
 from .model import MotionClip, Vec2
 
 
@@ -44,6 +44,7 @@ def _limits(clip: MotionClip) -> dict[str, tuple[float, float]]:
 def analyze_joint_limits(clip: MotionClip) -> dict[str, Any]:
     limits = _limits(clip)
     times = clip.times_s()
+    stops = stop_indices(clip)
     warnings: list[dict[str, Any]] = []
     joints: dict[str, Any] = {}
 
@@ -63,7 +64,7 @@ def analyze_joint_limits(clip: MotionClip) -> dict[str, Any]:
             )
             for frame in clip.frames
         ]
-        omega = scalar_derivative_times(angles, times)
+        omega = scalar_derivative_times(angles, times, stops)
         alpha = scalar_derivative_times(omega, times)
         minimum, maximum = limits[name]
 
