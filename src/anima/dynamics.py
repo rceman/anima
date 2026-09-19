@@ -15,8 +15,10 @@ class WeaponDynamicsProfile:
     inertia_factor: float = 0.33
     center_of_mass_fraction: float = 0.45
     damping_nm_per_rad_s: float = 0.8
+    max_drive_torque_nm: float = 32.0
     max_braking_torque_nm: float = 24.0
     max_handle_force_n: float = 1200.0
+    enforce_drive_torque_limit: bool = False
     impact_frame: int | None = None
     collision: bool = False
 
@@ -38,8 +40,17 @@ class WeaponDynamicsProfile:
             inertia_factor=float(raw.get("inertia_factor", 0.33)),
             center_of_mass_fraction=float(raw.get("center_of_mass_fraction", 0.45)),
             damping_nm_per_rad_s=float(raw.get("damping_nm_per_rad_s", 0.8)),
+            max_drive_torque_nm=float(
+                raw.get(
+                    "max_drive_torque_nm",
+                    raw.get("max_braking_torque_nm", 32.0),
+                )
+            ),
             max_braking_torque_nm=float(raw.get("max_braking_torque_nm", 24.0)),
             max_handle_force_n=float(raw.get("max_handle_force_n", 1200.0)),
+            enforce_drive_torque_limit=bool(
+                raw.get("enforce_drive_torque_limit", False)
+            ),
             impact_frame=(
                 int(raw["impact_frame"])
                 if raw.get("impact_frame") is not None
@@ -146,6 +157,20 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
 
     for i, frame in enumerate(clip.frames):
         force_mag = handle_force[i].length()
+        if (
+            profile.enforce_drive_torque_limit
+            and abs(torque[i]) > profile.max_drive_torque_nm
+        ):
+            warnings.append(
+                {
+                    "code": "drive_torque_limit_exceeded",
+                    "frame": frame.frame,
+                    "message": (
+                        f"Required drive torque {abs(torque[i]):.2f} Nm exceeds "
+                        f"configured {profile.max_drive_torque_nm:.2f} Nm."
+                    ),
+                }
+            )
         if force_mag > profile.max_handle_force_n:
             warnings.append(
                 {
