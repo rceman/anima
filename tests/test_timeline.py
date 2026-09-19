@@ -69,3 +69,16 @@ def test_weapon_interpolation_follows_arc_not_tip_chord():
     assert abs(blade.length() - 10.0) < 1e-6
     assert abs(blade.x - blade.y) < 1e-6
     assert blade.x > 7.0
+
+
+def test_explicit_timestamps_are_interpolated_and_preserved():
+    a = pose(0, 10)
+    b = pose(3, 40)
+    a.time_s = 0.0
+    b.time_s = 0.6
+    clip = MotionClip(128, 128, 60, 12, "test", [a, b])
+
+    dense = densify_clip(clip, easing="linear")
+
+    assert [frame.time_s for frame in dense.frames] == [0.0, 0.2, 0.4, 0.6]
+    assert dense.times_s() == [0.0, 0.2, 0.4, 0.6]
