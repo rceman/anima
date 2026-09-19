@@ -4,7 +4,7 @@ from dataclasses import dataclass, asdict
 import math
 from typing import Any
 
-from .kinematics import scalar_derivative_times, vec_derivative_times
+from .kinematics import scalar_derivative_times, stop_indices, vec_derivative_times
 from .model import FramePose, MotionClip, Vec2
 
 
@@ -119,9 +119,10 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
     """
     profile = WeaponDynamicsProfile.from_clip(clip)
     times = clip.times_s()
+    stops = stop_indices(clip)
     angles = unwrap_angles([sword_angle(frame) for frame in clip.frames])
 
-    omega = scalar_derivative_times(angles, times)
+    omega = scalar_derivative_times(angles, times, stops)
     alpha = scalar_derivative_times(omega, times)
     inertia = profile.inertia_kg_m2
     torque = [
@@ -142,7 +143,7 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
         for frame in clip.frames
     ]
     com_m = [Vec2(point.x / ppm, point.y / ppm) for point in com_px]
-    com_velocity = vec_derivative_times(com_m, times)
+    com_velocity = vec_derivative_times(com_m, times, stops)
     com_acceleration = vec_derivative_times(com_velocity, times)
     com_jerk = vec_derivative_times(com_acceleration, times)
 
