@@ -38,6 +38,8 @@ Record the actual source timestamps. Timing is part of the motion, not an export
 
 Motion blur, occluded hands, camera movement, perspective scale changes, and detector noise must not be copied literally.
 
+A key pose is not automatically a stop. Anticipation, attack-start, impact, and follow-through normally carry velocity through the pose. Use `kinematic_stop` only when the character is genuinely at rest (for example the initial held guard or the final recovered guard). This prevents finite-difference analysis from inventing motion at a known rest state without falsely freezing every named keyframe.
+
 ## 2. Retarget to the Anima rig
 
 For every selected key pose, author:
@@ -50,7 +52,8 @@ For every selected key pose, author:
 - sword tip;
 - foot contact mode;
 - elbow/knee IK pole hints;
-- source-relative `time_s`.
+- source-relative `time_s`;
+- `kinematic_stop: true` only for poses that are genuine held/rest states.
 
 Use the reference to infer **intent and mechanics**, then map it to the canonical rig. Bone lengths and sword length are not re-measured independently per frame.
 
