@@ -56,6 +56,7 @@ def build_animation_manifest(
                 },
                 "root": frame.root.as_list(),
                 "ground_y": clip.ground_y,
+                "kinematic_stop": frame.kinematic_stop,
                 "contacts": {
                     name: contact_mode(value)
                     for name, value in frame.contacts.items()
