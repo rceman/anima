@@ -130,3 +130,30 @@ def test_grounded_contact_allows_horizontal_slide_but_not_lift():
 
     assert normalized.frames[1].joints["foot_r"].y == 108
     assert normalized.frames[1].joints["foot_r"].x == 75
+
+
+def test_axial_body_proportions_are_restored():
+    clip = make_clip()
+    clip.frames[1].joints["chest"] = Vec2(70, 40)
+    clip.frames[1].joints["head"] = Vec2(90, 10)
+    clip.frames[1].joints["shoulder_l"] = Vec2(40, 50)
+    clip.frames[1].joints["shoulder_r"] = Vec2(90, 50)
+    clip.frames[1].joints["hip_l"] = Vec2(30, 78)
+    clip.frames[1].joints["hip_r"] = Vec2(100, 78)
+
+    normalized = normalize_clip(clip)
+    first = normalized.frames[0]
+    second = normalized.frames[1]
+
+    assert abs(
+        second.root.distance_to(second.joints["chest"])
+        - first.root.distance_to(first.joints["chest"])
+    ) < 1e-6
+    assert abs(
+        second.joints["shoulder_l"].distance_to(second.joints["shoulder_r"])
+        - first.joints["shoulder_l"].distance_to(first.joints["shoulder_r"])
+    ) < 1e-6
+    assert abs(
+        second.joints["hip_l"].distance_to(second.joints["hip_r"])
+        - first.joints["hip_l"].distance_to(first.joints["hip_r"])
+    ) < 1e-6
