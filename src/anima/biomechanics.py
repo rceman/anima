@@ -9,6 +9,7 @@ from .contacts import contact_mode, is_ground_contact, is_planted
 from .kinematics import (
     analyze_joint_kinematics,
     scalar_derivative_times,
+    stop_indices,
     unwrap_angles,
     vec_derivative_times,
 )
@@ -113,20 +114,21 @@ def analyze_body_kinematics(clip: MotionClip) -> dict[str, Any]:
     """
     profile = BodyDynamicsProfile.from_clip(clip)
     times = clip.times_s()
+    stops = stop_indices(clip)
     ppm = max(profile.pixels_per_meter, 1e-9)
 
     com_px = [estimate_com(frame) for frame in clip.frames]
     com_m = [Vec2(point.x / ppm, point.y / ppm) for point in com_px]
-    velocity = vec_derivative_times(com_m, times)
+    velocity = vec_derivative_times(com_m, times, stops)
     acceleration = vec_derivative_times(velocity, times)
     jerk = vec_derivative_times(acceleration, times)
 
     root_m = [Vec2(frame.root.x / ppm, frame.root.y / ppm) for frame in clip.frames]
-    root_velocity = vec_derivative_times(root_m, times)
+    root_velocity = vec_derivative_times(root_m, times, stops)
     root_acceleration = vec_derivative_times(root_velocity, times)
 
     torso_angles = unwrap_angles([_torso_angle(frame) for frame in clip.frames])
-    torso_omega = scalar_derivative_times(torso_angles, times)
+    torso_omega = scalar_derivative_times(torso_angles, times, stops)
     torso_alpha = scalar_derivative_times(torso_omega, times)
     torso_jerk = scalar_derivative_times(torso_alpha, times)
 
