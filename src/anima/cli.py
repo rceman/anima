@@ -10,7 +10,12 @@ from .model import MotionClip
 
 
 def _cmd_compile(args: argparse.Namespace) -> int:
-    ok = compile_motion(args.input, args.output, scale=args.scale)
+    ok = compile_motion(
+        args.input,
+        args.output,
+        scale=args.scale,
+        strict_physics=args.strict_physics,
+    )
     print(f"compiled: {args.output}")
     print(f"validation: {'PASS' if ok else 'FAIL'}")
     return 0 if ok else 2
@@ -47,6 +52,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=4,
         help="Nearest-neighbor preview scale",
+    )
+    compile_cmd.add_argument(
+        "--strict-physics",
+        action="store_true",
+        help="Fail compilation on hard physics plausibility issues",
     )
     compile_cmd.set_defaults(func=_cmd_compile)
 
