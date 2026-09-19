@@ -75,6 +75,7 @@ class FramePose:
     contacts: dict[str, bool | str] = field(default_factory=dict)
     ik_poles: dict[str, Vec2] = field(default_factory=dict)
     label: str | None = None
+    time_s: float | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "FramePose":
@@ -89,6 +90,7 @@ class FramePose:
                 for name, point in data.get("ik_poles", {}).items()
             },
             label=data.get("label"),
+            time_s=(float(data["time_s"]) if data.get("time_s") is not None else None),
         )
 
     def shifted(self, delta: Vec2) -> "FramePose":
@@ -104,6 +106,7 @@ class FramePose:
             contacts=dict(self.contacts),
             ik_poles={name: point + delta for name, point in self.ik_poles.items()},
             label=self.label,
+            time_s=self.time_s,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -120,6 +123,8 @@ class FramePose:
         }
         if self.label:
             out["label"] = self.label
+        if self.time_s is not None:
+            out["time_s"] = self.time_s
         return out
 
 
@@ -176,6 +181,26 @@ class MotionClip:
             "dynamics": self.dynamics,
             "frames": [frame.to_dict() for frame in self.frames],
         }
+
+    def times_s(self) -> list[float]:
+        """Return monotonically increasing pose timestamps.
+
+        If explicit time_s values are present, every frame must define one.
+        Otherwise frame_number/fps is the canonical clock.
+        """
+        explicit = [frame.time_s is not None for frame in self.frames]
+        if any(explicit) and not all(explicit):
+            raise ValueError("Either all frames define time_s or none of them do")
+
+        if all(explicit) and self.frames:
+            times = [float(frame.time_s) for frame in self.frames if frame.time_s is not None]
+        else:
+            times = [frame.frame / self.fps for frame in self.frames]
+
+        for previous, current in zip(times, times[1:]):
+            if current <= previous:
+                raise ValueError("Frame timestamps must be strictly increasing")
+        return times
 
     def save(self, path: str | Path) -> None:
         Path(path).write_text(json.dumps(self.to_dict(), indent=2) + "\n", encoding="utf-8")
