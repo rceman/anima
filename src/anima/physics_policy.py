@@ -12,6 +12,7 @@ HARD_CODES = {
     "joint_limit_violation",
     "handle_force_exceeded",
     "drive_torque_limit_exceeded",
+    "collision_response_mismatch",
     "system_friction_limit_exceeded",
     "joint_torque_limit_exceeded",
 }
