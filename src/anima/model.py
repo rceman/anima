@@ -76,6 +76,7 @@ class FramePose:
     ik_poles: dict[str, Vec2] = field(default_factory=dict)
     label: str | None = None
     time_s: float | None = None
+    kinematic_stop: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "FramePose":
@@ -91,6 +92,7 @@ class FramePose:
             },
             label=data.get("label"),
             time_s=(float(data["time_s"]) if data.get("time_s") is not None else None),
+            kinematic_stop=bool(data.get("kinematic_stop", False)),
         )
 
     def shifted(self, delta: Vec2) -> "FramePose":
@@ -107,6 +109,7 @@ class FramePose:
             ik_poles={name: point + delta for name, point in self.ik_poles.items()},
             label=self.label,
             time_s=self.time_s,
+            kinematic_stop=self.kinematic_stop,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -125,6 +128,8 @@ class FramePose:
             out["label"] = self.label
         if self.time_s is not None:
             out["time_s"] = self.time_s
+        if self.kinematic_stop:
+            out["kinematic_stop"] = True
         return out
 
 
