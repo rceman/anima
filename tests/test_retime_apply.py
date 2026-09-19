@@ -1,3 +1,5 @@
+import pytest
+
 from anima.model import FramePose, MotionClip, Vec2, WeaponPose
 from anima.retime_apply import apply_timing_recommendation
 
@@ -50,6 +52,6 @@ def test_apply_timing_changes_only_time_not_geometry():
 
     retimed = apply_timing_recommendation(clip, report)
 
-    assert retimed.times_s() == [0.0, 0.1, 0.3]
+    assert retimed.times_s() == pytest.approx([0.0, 0.1, 0.3])
     assert retimed.frames[2].root == clip.frames[2].root
     assert retimed.frames[2].weapon.tip == clip.frames[2].weapon.tip
