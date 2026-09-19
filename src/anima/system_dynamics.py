@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from .kinematics import vec_derivative
+from .kinematics import vec_derivative_times
 from .model import MotionClip, Vec2
 
 
@@ -61,10 +61,10 @@ def analyze_system_dynamics(
         Vec2(point.x / ppm, point.y / ppm)
         for point in system_com_px
     ]
-    dt = 1.0 / clip.fps
-    velocity = vec_derivative(system_com_m, dt)
-    acceleration = vec_derivative(velocity, dt)
-    jerk = vec_derivative(acceleration, dt)
+    times = clip.times_s()
+    velocity = vec_derivative_times(system_com_m, times)
+    acceleration = vec_derivative_times(velocity, times)
+    jerk = vec_derivative_times(acceleration, times)
 
     warnings: list[dict[str, Any]] = []
     frames: list[dict[str, Any]] = []
@@ -119,6 +119,7 @@ def analyze_system_dynamics(
         frames.append(
             {
                 "frame": frame.frame,
+                "time_s": times[index],
                 "label": frame.label,
                 "system_com_px": system_com_px[index].as_list(),
                 "system_com_velocity_m_s": velocity[index].as_list(),
