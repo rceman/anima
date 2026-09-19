@@ -119,7 +119,8 @@
           92
         ]
       },
-      "time_s": 0
+      "time_s": 0,
+      "kinematic_stop": true
     },
     {
       "frame": 1,
@@ -222,7 +223,8 @@
           92
         ]
       },
-      "time_s": 0.13
+      "time_s": 0.13,
+      "kinematic_stop": false
     },
     {
       "frame": 2,
@@ -325,7 +327,8 @@
           92
         ]
       },
-      "time_s": 0.3
+      "time_s": 0.3,
+      "kinematic_stop": false
     },
     {
       "frame": 3,
@@ -428,7 +431,8 @@
           92
         ]
       },
-      "time_s": 0.39
+      "time_s": 0.39,
+      "kinematic_stop": false
     },
     {
       "frame": 4,
@@ -531,7 +535,8 @@
           92
         ]
       },
-      "time_s": 0.46
+      "time_s": 0.46,
+      "kinematic_stop": false
     },
     {
       "frame": 5,
@@ -634,7 +639,8 @@
           92
         ]
       },
-      "time_s": 0.59
+      "time_s": 0.59,
+      "kinematic_stop": false
     },
     {
       "frame": 6,
@@ -737,7 +743,8 @@
           92
         ]
       },
-      "time_s": 0.82
+      "time_s": 0.82,
+      "kinematic_stop": false
     },
     {
       "frame": 7,
@@ -840,7 +847,8 @@
           92
         ]
       },
-      "time_s": 1.05
+      "time_s": 1.05,
+      "kinematic_stop": true
     }
   ],
   "dynamics": {
