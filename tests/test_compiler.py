@@ -30,6 +30,18 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     parts_frame = Image.open(tmp_path / "parts_frames" / "frame_00.png")
     assert parts_frame.size == (128, 128)
 
+    left_arm_layer = Image.open(
+        tmp_path / "layers" / "left_arm" / "frame_00.png"
+    )
+    assert left_arm_layer.mode == "RGBA"
+    assert left_arm_layer.size == (128, 128)
+
+    weapon_layer_sheet = Image.open(
+        tmp_path / "layers" / "weapon_sheet.png"
+    )
+    assert weapon_layer_sheet.mode == "RGBA"
+    assert weapon_layer_sheet.size == (512, 256)
+
     debug_preview = Image.open(tmp_path / "debug_preview.gif")
     assert debug_preview.size == (1024, 1024)
 
