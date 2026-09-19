@@ -73,3 +73,13 @@ def test_normalization_locks_ground_grips_and_sword():
 def test_normalized_clip_validates():
     report = validate_clip(normalize_clip(make_clip()))
     assert report.ok, report.issues
+
+
+def test_grounded_unreachable_foot_is_clamped_along_ground():
+    clip = make_clip()
+    clip.frames[1].joints["foot_r"] = Vec2(120, 102)
+
+    normalized = normalize_clip(clip)
+
+    assert normalized.frames[1].joints["foot_r"].y == 108
+    assert normalized.frames[1].joints["foot_r"].x < 120
