@@ -193,12 +193,26 @@ def make_sheet(
     return sheet
 
 
+def _scaled(image: Image.Image, scale: int) -> Image.Image:
+    if scale == 1:
+        return image
+    return image.resize(
+        (image.width * scale, image.height * scale),
+        Image.Resampling.NEAREST,
+    )
+
+
 def export_render_set(
     clip: MotionClip,
     output: str | Path,
     scale: int = 4,
     columns: int = 4,
 ) -> None:
+    """Export canonical 1x assets plus nearest-neighbor previews.
+
+    Canonical frames always retain the clip canvas size (for example 128x128).
+    The scale argument affects preview assets only.
+    """
     output = Path(output)
     debug_dir = output / "debug_frames"
     control_dir = output / "control_frames"
@@ -208,30 +222,38 @@ def export_render_set(
     debug: list[Image.Image] = []
     control: list[Image.Image] = []
     for index, frame in enumerate(clip.frames):
-        debug_frame = render_debug_frame(clip, frame, scale=scale)
-        control_frame = render_control_frame(clip, frame, scale=scale)
+        debug_frame = render_debug_frame(clip, frame, scale=1)
+        control_frame = render_control_frame(clip, frame, scale=1)
         debug_frame.save(debug_dir / f"frame_{index:02d}.png")
         control_frame.save(control_dir / f"frame_{index:02d}.png")
         debug.append(debug_frame)
         control.append(control_frame)
 
-    make_sheet(debug, columns=columns).save(output / "debug_sheet.png")
-    make_sheet(control, columns=columns).save(output / "control_sheet.png")
+    debug_sheet = make_sheet(debug, columns=columns)
+    control_sheet = make_sheet(control, columns=columns)
+    debug_sheet.save(output / "debug_sheet.png")
+    control_sheet.save(output / "control_sheet.png")
 
     duration = max(1, round(1000.0 / clip.fps))
-    debug[0].save(
-        output / "debug.gif",
+    debug_preview = [_scaled(frame, scale) for frame in debug]
+    control_preview = [_scaled(frame, scale) for frame in control]
+
+    debug_preview[0].save(
+        output / "debug_preview.gif",
         save_all=True,
-        append_images=debug[1:],
+        append_images=debug_preview[1:],
         duration=duration,
         loop=0,
         disposal=2,
     )
-    control[0].save(
-        output / "control.gif",
+    control_preview[0].save(
+        output / "control_preview.gif",
         save_all=True,
-        append_images=control[1:],
+        append_images=control_preview[1:],
         duration=duration,
         loop=0,
         disposal=2,
     )
+
+    _scaled(debug_sheet, scale).save(output / "debug_sheet.preview.png")
+    _scaled(control_sheet, scale).save(output / "control_sheet.preview.png")
