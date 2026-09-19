@@ -13,6 +13,7 @@ GROUND: preserve the single ground baseline and all planted foot contacts exactl
 
 AUTHORITY RULES:
 - The control spritesheet is authoritative for pose, position, proportions, hand placement, sword direction, and timing order.
+- If a semantic body-parts sheet is supplied, use it only to disambiguate which pixels belong to the left/right arms, left/right legs, torso/head, and sword. Its colors are labels, not final character colors.
 - The separate master-character image is authoritative for appearance, clothing, palette, and pixel-art style.
 - Do not invent or reinterpret poses.
 - Every panel depicts exactly the same character at exactly the same scale.
@@ -26,5 +27,5 @@ AUTHORITY RULES:
 - Keep the background uniform and unchanged across all panels.
 
 OUTPUT:
-Return one spritesheet with the exact same panel order and grid geometry as the supplied control spritesheet. Change only the mannequin rendering into the master character's final pixel-art appearance.
+Return one spritesheet with the exact same panel order and grid geometry as the supplied control spritesheet. Change only the mannequin rendering into the master character's final pixel-art appearance. The semantic body-part colors must not appear in the final art.
 """
