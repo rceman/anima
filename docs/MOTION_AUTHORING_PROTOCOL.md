@@ -287,14 +287,18 @@ anima verify-render output/motion.normalized.json final_sheet.png \
   --correction-prompt output/imagegen_correction.txt
 ```
 
-The first validator checks:
+The render validator checks:
 
 - exact sheet/cell dimensions;
-- character center drift;
-- character scale drift;
-- head and hand anchor presence;
-- sword-tip presence near the expected tip;
+- per-frame background consistency;
+- character center and scale drift;
+- control-mask coverage and excess foreground;
+- head, hand, elbow and knee anchor presence;
+- sword-tip placement and continuous blade-path coverage;
 - expected ground contacts.
+
+When validation fails, `--correction-prompt` converts only those failures into
+a focused repair contract so already-correct panels do not need to be redrawn.
 
 A failed render is sent back for correction instead of silently becoming the source of truth.
 
