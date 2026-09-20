@@ -206,17 +206,17 @@ def _fit_shoulder_girdle_to_grips(
     max_rotation_deg: float = 10.0,
     iterations: int = 6,
 ) -> dict[str, Vec2]:
-    """Translate the shoulder girdle slightly so both sword grips are reachable.
+    """Adjust the shoulder girdle slightly so both sword grips stay comfortable.
 
     Human shoulders are not welded to the rib cage: clavicle/scapula motion
-    allows a few centimeters of protraction/retraction. Modeling a bounded
-    shared shoulder translation is more realistic than letting an unreachable
-    IK target detach the hand from the sword or stretch the arm.
+    allows both modest shoulder-line rotation and translation. Modeling those
+    motions inside strict bounds is more realistic than detaching a hand,
+    stretching an arm, or locking an elbow.
 
-    The shoulder width remains fixed; only the pair's center moves. This is a
-    deterministic 2D approximation, not a full scapulothoracic model.
+    Shoulder width remains fixed. This is a deterministic 2D approximation,
+    not a full scapulothoracic model.
     """
-    if max_shift_px <= 0.0:
+    if max_shift_px <= 0.0 and max_rotation_deg <= 0.0:
         return joints
 
     arm_specs = (
