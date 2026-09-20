@@ -28,6 +28,9 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     parts_sheet = Image.open(tmp_path / "parts_sheet.png")
     assert parts_sheet.size == (512, 256)
 
+    cutout_sheet = Image.open(tmp_path / "cutout_sheet.png")
+    assert cutout_sheet.size == (512, 256)
+
     parts_frame = Image.open(tmp_path / "parts_frames" / "frame_00.png")
     assert parts_frame.size == (128, 128)
 
@@ -52,6 +55,9 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     parts_preview = Image.open(tmp_path / "parts_preview.gif")
     assert parts_preview.size == (512, 512)
 
+    cutout_preview = Image.open(tmp_path / "cutout_preview.gif")
+    assert cutout_preview.size == (512, 512)
+
     review_preview = Image.open(tmp_path / "review_preview.gif")
     assert review_preview.size == (2048, 1024)
 
@@ -65,6 +71,9 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     assert (tmp_path / "animation_manifest.json").exists()
     assert (tmp_path / "transforms.json").exists()
     assert (tmp_path / "reference_map.json").exists()
+    assert (tmp_path / "piece_manifest.json").exists()
+    assert (tmp_path / "bind_pieces" / "weapon.png").exists()
+    assert (tmp_path / "cutout_frames" / "frame_00.png").exists()
 
     prompt = (tmp_path / "imagegen_prompt.txt").read_text(encoding="utf-8")
     assert "two-handed grip" in prompt
