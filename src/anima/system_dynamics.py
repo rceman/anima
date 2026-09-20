@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from .angular_momentum import analyze_angular_momentum
 from .kinematics import stop_indices, vec_derivative_times
 from .model import MotionClip, Vec2
 
@@ -70,6 +71,13 @@ def analyze_system_dynamics(
     acceleration = vec_derivative_times(velocity, times)
     jerk = vec_derivative_times(acceleration, times)
 
+    angular_report = analyze_angular_momentum(
+        clip,
+        body_report,
+        weapon_report,
+    )
+    angular_frames = angular_report.get("frames", [])
+
     warnings: list[dict[str, Any]] = []
     frames: list[dict[str, Any]] = []
 
@@ -111,19 +119,40 @@ def analyze_system_dynamics(
                 "required_friction_ratio": friction_ratio,
             }
 
-            # Linear inverted-pendulum/ZMP approximation. Unlike static COM
-            # projection, this accounts for horizontal acceleration: a fast
-            # sword swing can demand the effective center of pressure to move
-            # toward an edge of the support region even while COM stays inside.
+            # Planar ZMP/COP approximation including angular-momentum rate:
+            #
+            #   p = x_com + (Hdot - z_com * F_x) / F_z
+            #
+            # Coordinates here are x/right and z/up in meters. This reduces to
+            # the familiar x_com - z*xddot/g expression when Hdot=0 and vertical
+            # acceleration is negligible, while also accounting for rotational
+            # momentum from the torso and sword.
             if normal > 1e-6 and gravity > 1e-9:
-                com_height_px = max(
+                com_height_m = max(
                     0.0,
-                    clip.ground_y - system_com_px[index].y,
+                    (clip.ground_y - system_com_px[index].y) / ppm,
                 )
-                center_of_pressure_x = (
-                    system_com_px[index].x
-                    - com_height_px * acceleration[index].x / gravity
+                angular_momentum_rate = (
+                    float(
+                        angular_frames[index].get(
+                            "angular_momentum_rate_nm",
+                            0.0,
+                        )
+                    )
+                    if index < len(angular_frames)
+                    else 0.0
                 )
+                system_x_m = system_com_px[index].x / ppm
+                center_of_pressure_x_m = (
+                    system_x_m
+                    + (
+                        angular_momentum_rate
+                        - com_height_m * grf_x
+                    )
+                    / normal
+                )
+                center_of_pressure_x = center_of_pressure_x_m * ppm
+
                 support_min = float(support["min_x"])
                 support_max = float(support["max_x"])
                 dynamic_balance_margin = min(
@@ -176,6 +205,11 @@ def analyze_system_dynamics(
                 "stability_margin_px": stability_margin,
                 "center_of_pressure_x_px": center_of_pressure_x,
                 "dynamic_balance_margin_px": dynamic_balance_margin,
+                "angular_momentum": (
+                    angular_frames[index]
+                    if index < len(angular_frames)
+                    else None
+                ),
                 "ground_reaction_force": ground_reaction,
             }
         )
@@ -190,6 +224,7 @@ def analyze_system_dynamics(
             "friction_coefficient": mu,
             "dynamic_balance_tolerance_px": balance_tolerance_px,
         },
+        "angular_momentum": angular_report,
         "frames": frames,
         "warnings": warnings,
     }
