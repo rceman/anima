@@ -141,10 +141,14 @@ def analyze_angular_momentum(
         )
 
         body_velocity = _world_velocity(
-            Vec2.from_any(body_frame["com_velocity_m_s"])
+            Vec2.from_any(
+                body_frame.get("com_velocity_m_s", [0.0, 0.0])
+            )
         )
         weapon_velocity = _world_velocity(
-            Vec2.from_any(weapon_frame["com_velocity_m_s"])
+            Vec2.from_any(
+                weapon_frame.get("com_velocity_m_s", [0.0, 0.0])
+            )
         )
         system_velocity = Vec2(
             (
