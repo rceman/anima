@@ -5,10 +5,11 @@ import math
 from pathlib import Path
 from typing import Any
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from .contacts import is_ground_contact
 from .model import FramePose, MotionClip, Vec2
+from .render import render_control_frame
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,9 @@ class RenderValidationProfile:
     sword_tip_radius_px: int = 9
     foot_radius_px: int = 7
     ground_tolerance_px: int = 2
+    pose_mask_radius_px: int = 6
+    min_control_mask_coverage: float = 0.70
+    min_rendered_near_control: float = 0.55
 
 
 def _color_distance(a: tuple[int, int, int], b: tuple[int, int, int]) -> float:
@@ -50,6 +54,112 @@ def _foreground_points(
             if _color_distance(color, background) > threshold:
                 points.append((x, y))
     return points
+
+
+
+
+def _mask_from_points(
+    size: tuple[int, int],
+    points: list[tuple[int, int]],
+) -> Image.Image:
+    mask = Image.new("L", size, 0)
+    pixels = mask.load()
+    for x, y in points:
+        pixels[x, y] = 255
+    return mask
+
+
+def _mask_overlap_metrics(
+    rendered: Image.Image,
+    frame: FramePose,
+    clip: MotionClip,
+    background: tuple[int, int, int],
+    profile: RenderValidationProfile,
+) -> dict[str, float | int]:
+    max_y = max(0, round(clip.ground_y) - 2)
+    rendered_points = _foreground_points(
+        rendered,
+        background,
+        profile.background_distance_threshold,
+        max_y=max_y,
+    )
+    rendered_mask = _mask_from_points(
+        rendered.size,
+        rendered_points,
+    )
+
+    control = render_control_frame(
+        clip,
+        frame,
+        scale=1,
+    ).convert("RGB")
+    control_background = tuple(
+        int(value)
+        for value in control.getpixel((0, 0))[:3]
+    )
+    control_points = _foreground_points(
+        control,
+        control_background,
+        profile.background_distance_threshold,
+        max_y=max_y,
+    )
+    control_mask = _mask_from_points(
+        control.size,
+        control_points,
+    )
+
+    radius = max(0, int(profile.pose_mask_radius_px))
+    if radius > 0:
+        kernel = radius * 2 + 1
+        rendered_dilated = rendered_mask.filter(
+            ImageFilter.MaxFilter(kernel)
+        )
+        control_dilated = control_mask.filter(
+            ImageFilter.MaxFilter(kernel)
+        )
+    else:
+        rendered_dilated = rendered_mask
+        control_dilated = control_mask
+
+    rendered_pixels = rendered_mask.load()
+    rendered_near = control_dilated.load()
+    control_pixels = control_mask.load()
+    control_near = rendered_dilated.load()
+
+    rendered_count = 0
+    rendered_near_count = 0
+    control_count = 0
+    control_covered_count = 0
+
+    width, height = rendered.size
+    for y in range(height):
+        for x in range(width):
+            if rendered_pixels[x, y]:
+                rendered_count += 1
+                if rendered_near[x, y]:
+                    rendered_near_count += 1
+            if control_pixels[x, y]:
+                control_count += 1
+                if control_near[x, y]:
+                    control_covered_count += 1
+
+    control_coverage = (
+        control_covered_count / control_count
+        if control_count
+        else 0.0
+    )
+    rendered_near_control = (
+        rendered_near_count / rendered_count
+        if rendered_count
+        else 0.0
+    )
+    return {
+        "radius_px": radius,
+        "control_pixels": control_count,
+        "rendered_pixels": rendered_count,
+        "control_coverage": control_coverage,
+        "rendered_near_control": rendered_near_control,
+    }
 
 
 def _bbox(points: list[tuple[int, int]]) -> tuple[int, int, int, int] | None:
@@ -199,6 +309,42 @@ def _frame_report(
                 }
             )
 
+    pose_mask = _mask_overlap_metrics(
+        image.convert("RGB"),
+        frame,
+        clip,
+        background_rgb,
+        profile,
+    )
+    if (
+        float(pose_mask["control_coverage"])
+        < profile.min_control_mask_coverage
+    ):
+        issues.append(
+            {
+                "code": "pose_mask_miss",
+                "message": (
+                    "Rendered sprite does not cover enough of the expected "
+                    f"control pose: {float(pose_mask['control_coverage']):.2f} "
+                    f"< {profile.min_control_mask_coverage:.2f}."
+                ),
+            }
+        )
+    if (
+        float(pose_mask["rendered_near_control"])
+        < profile.min_rendered_near_control
+    ):
+        issues.append(
+            {
+                "code": "pose_mask_excess",
+                "message": (
+                    "Too much rendered foreground lies away from the expected "
+                    f"control pose: {float(pose_mask['rendered_near_control']):.2f} "
+                    f"< {profile.min_rendered_near_control:.2f}."
+                ),
+            }
+        )
+
     anchor_checks: dict[str, bool] = {}
 
     important = {
@@ -267,6 +413,7 @@ def _frame_report(
         "label": frame.label,
         "background_rgb": list(background_rgb),
         "bbox": bbox_metrics,
+        "pose_mask": pose_mask,
         "anchors": anchor_checks,
         "contacts": contacts,
         "issues": issues,
