@@ -228,3 +228,35 @@ def test_shoulder_girdle_shift_is_bounded():
 
     shift = solved["shoulder_r"] - joints["shoulder_r"]
     assert shift.length() <= 2.0 + 1e-9
+
+
+def test_shoulder_girdle_uses_comfort_extension_ratio_before_full_lock():
+    clip = make_clip()
+    rest = __import__("anima.rig", fromlist=["RestGeometry"]).RestGeometry.from_frame(
+        clip.frames[0]
+    )
+    joints = dict(clip.frames[0].joints)
+
+    shoulder = joints["shoulder_r"]
+    total_reach = (
+        rest.bone_lengths["upper_arm_r"]
+        + rest.bone_lengths["forearm_r"]
+    )
+    target = Vec2(
+        shoulder.x + total_reach * 0.99,
+        shoulder.y,
+    )
+
+    solved = _fit_shoulder_girdle_to_grips(
+        joints,
+        rest,
+        "hand_r",
+        "hand_l",
+        target,
+        joints["hand_l"],
+        max_shift_px=4.0,
+        max_extension_ratio=0.95,
+    )
+
+    assert solved["shoulder_r"].x > shoulder.x
+    assert solved["shoulder_r"].distance_to(target) <= total_reach * 0.95 + 1e-6
