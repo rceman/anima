@@ -148,6 +148,13 @@
           },
           "kinematic_stop": {
             "type": "boolean"
+          },
+          "layer_order": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
           }
         },
         "additionalProperties": false
