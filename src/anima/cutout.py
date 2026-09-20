@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,20 @@ SEMANTIC_PIECES: dict[str, tuple[str, ...]] = {
     "head": ("head",),
     "weapon": ("weapon",),
 }
+
+PIECE_ORDER: tuple[str, ...] = tuple(
+    piece
+    for semantic in (
+        "left_leg",
+        "right_leg",
+        "torso",
+        "left_arm",
+        "right_arm",
+        "head",
+        "weapon",
+    )
+    for piece in SEMANTIC_PIECES[semantic]
+)
 
 
 def _xy(point: Vec2) -> tuple[int, int]:
@@ -148,6 +163,101 @@ def build_bind_piece_masks(
     return masks
 
 
+def build_piece_manifest(
+    clip: MotionClip,
+) -> dict[str, Any]:
+    """Describe the bind-pose art pieces expected by the cutout renderer.
+
+    Every piece is a full-canvas transparent PNG authored in bind-pose
+    coordinates. This makes the contract deliberately simple: an artist or
+    ImageGen can paint each piece once, and Anima applies the same deterministic
+    affine transforms used by the debug rig.
+    """
+    if not clip.frames:
+        return {
+            "version": 1,
+            "canvas": [clip.width, clip.height],
+            "bind_frame": None,
+            "pieces": {},
+        }
+
+    transforms = build_transform_manifest(clip)
+    bind = transforms["frames"][0]
+    semantic_by_piece = {
+        piece: semantic
+        for semantic, pieces in SEMANTIC_PIECES.items()
+        for piece in pieces
+    }
+
+    pieces: dict[str, Any] = {}
+    for piece in PIECE_ORDER:
+        transform = _piece_transform(bind, piece)
+        if transform is None:
+            continue
+        pieces[piece] = {
+            "file": f"{piece}.png",
+            "semantic": semantic_by_piece[piece],
+            "canvas": [clip.width, clip.height],
+            "rest_start": transform.get("rest_start"),
+            "rest_end": transform.get("rest_end"),
+            "pivot": transform.get("rest_start"),
+            "transparent_background": True,
+        }
+
+    return {
+        "version": 1,
+        "rig": clip.rig,
+        "canvas": [clip.width, clip.height],
+        "bind_frame": clip.frames[0].frame,
+        "coordinate_system": {
+            "origin": "top_left",
+            "x": "right",
+            "y": "down",
+        },
+        "contract": (
+            "Each PNG is a full-canvas RGBA image painted in bind-pose "
+            "coordinates. Keep all pixels belonging to that named body piece "
+            "on its own transparent layer."
+        ),
+        "pieces": pieces,
+    }
+
+
+def load_bind_piece_pack(
+    clip: MotionClip,
+    directory: str | Path,
+) -> dict[str, Image.Image]:
+    """Load a painted bind-pose piece pack with strict geometry checks."""
+    root = Path(directory)
+    manifest = build_piece_manifest(clip)
+    expected = manifest["pieces"]
+    loaded: dict[str, Image.Image] = {}
+    missing: list[str] = []
+
+    for piece, info in expected.items():
+        path = root / str(info["file"])
+        if not path.exists():
+            missing.append(str(path))
+            continue
+
+        image = Image.open(path).convert("RGBA")
+        if image.size != (clip.width, clip.height):
+            raise ValueError(
+                f"{piece} has size {image.size}; expected "
+                f"{(clip.width, clip.height)}"
+            )
+        if image.getbbox() is None:
+            raise ValueError(f"{piece} is completely transparent")
+        loaded[piece] = image
+
+    if missing:
+        raise FileNotFoundError(
+            "Bind piece pack is incomplete; missing: "
+            + ", ".join(missing)
+        )
+    return loaded
+
+
 def _inverse_affine(
     matrix: list[float],
 ) -> tuple[float, float, float, float, float, float]:
@@ -196,6 +306,7 @@ def render_cutout_frame(
     frame_index: int,
     bind_masks: dict[str, Image.Image] | None = None,
     transform_manifest: dict[str, Any] | None = None,
+    preserve_piece_colors: bool = False,
 ) -> Image.Image:
     """Render a pose by transforming bind-pose raster pieces, not redrawing them."""
     if not 0 <= frame_index < len(clip.frames):
@@ -240,11 +351,18 @@ def render_cutout_frame(
                 mask,
                 transform["matrix"],
             )
-            output.paste(
-                color_layer,
-                (0, 0),
-                transformed.getchannel("A"),
-            )
+            if preserve_piece_colors:
+                output.paste(
+                    transformed.convert("RGB"),
+                    (0, 0),
+                    transformed.getchannel("A"),
+                )
+            else:
+                output.paste(
+                    color_layer,
+                    (0, 0),
+                    transformed.getchannel("A"),
+                )
 
     return output
 
@@ -290,6 +408,7 @@ def export_cutout_set(
     output_dir: str | Path,
     columns: int = 4,
     preview_scale: int = 4,
+    piece_dir: str | Path | None = None,
 ) -> None:
     output = Path(output_dir)
     frame_dir = output / "cutout_frames"
@@ -297,10 +416,31 @@ def export_cutout_set(
     frame_dir.mkdir(parents=True, exist_ok=True)
     bind_dir.mkdir(parents=True, exist_ok=True)
 
-    masks = build_bind_piece_masks(clip)
+    use_painted_pieces = piece_dir is not None
+    masks = (
+        load_bind_piece_pack(clip, piece_dir)
+        if piece_dir is not None
+        else build_bind_piece_masks(clip)
+    )
     transforms = build_transform_manifest(clip)
     for name, mask in masks.items():
         mask.save(bind_dir / f"{name}.png")
+
+    (output / "piece_manifest.json").write_text(
+        json.dumps(
+            {
+                **build_piece_manifest(clip),
+                "source": (
+                    "painted_piece_pack"
+                    if use_painted_pieces
+                    else "procedural_masks"
+                ),
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     frames = [
         render_cutout_frame(
@@ -308,6 +448,7 @@ def export_cutout_set(
             index,
             bind_masks=masks,
             transform_manifest=transforms,
+            preserve_piece_colors=use_painted_pieces,
         )
         for index in range(len(clip.frames))
     ]
