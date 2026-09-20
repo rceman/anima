@@ -101,6 +101,7 @@ def _interpolate_pose(
         ik_poles=ik_poles,
         label=None,
         time_s=time_s,
+        layer_order=list(contact_source.layer_order),
     )
 
 
@@ -288,6 +289,7 @@ def _interpolate_pose_hermite(
         ik_poles=ik_poles,
         label=None,
         time_s=time_s,
+        layer_order=list(contact_source.layer_order),
     )
 
 
