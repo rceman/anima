@@ -160,3 +160,65 @@ def test_dynamic_balance_outside_support_is_reported():
     codes = {warning["code"] for warning in report["warnings"]}
 
     assert "dynamic_balance_outside_support" in codes
+
+
+def test_positive_angular_momentum_rate_shifts_cop_right():
+    clip = MotionClip(
+        width=128,
+        height=128,
+        ground_y=108,
+        fps=10,
+        rig="test",
+        frames=[
+            SimpleNamespace(frame=0, label=None, time_s=0.0, kinematic_stop=False),
+            SimpleNamespace(frame=1, label=None, time_s=0.1, kinematic_stop=False),
+            SimpleNamespace(frame=2, label=None, time_s=0.2, kinematic_stop=False),
+        ],
+        dynamics={
+            "body": {
+                "angular_momentum": {
+                    "body_radius_of_gyration_m": 0.3,
+                }
+            }
+        },
+    )
+    body = {
+        "profile": {
+            "mass_kg": 80.0,
+            "pixels_per_meter": 40.0,
+            "gravity_m_s2": 9.81,
+            "friction_coefficient": 10.0,
+        },
+        "frames": [
+            {
+                "com_px": [64.0, 68.0],
+                "com_velocity_m_s": [0.0, 0.0],
+                "torso_angular_velocity_deg_s": omega,
+                "support": {"min_x": 30.0, "max_x": 100.0},
+            }
+            for omega in (0.0, 60.0, 120.0)
+        ],
+    }
+    weapon = {
+        "profile": {
+            "mass_kg": 0.0,
+            "inertia_kg_m2": 0.0,
+            "effective_length_m": 0.0,
+            "center_of_mass_fraction": 0.0,
+        },
+        "frames": [
+            {
+                "weapon_com_px": [64.0, 68.0],
+                "com_velocity_m_s": [0.0, 0.0],
+                "angular_velocity_deg_s": 0.0,
+            }
+            for _ in range(3)
+        ],
+    }
+
+    report = analyze_system_dynamics(clip, body, weapon)
+    middle = report["frames"][1]
+
+    assert middle["system_com_acceleration_m_s2"][0] == 0.0
+    assert middle["angular_momentum"]["angular_momentum_rate_nm"] > 0.0
+    assert middle["center_of_pressure_x_px"] > middle["system_com_px"][0]
