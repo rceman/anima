@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .analysis import analyze_motion
 from .constraints import normalize_clip, validate_clip
+from .cutout import export_cutout_set
 from .handoff import imagegen_prompt
 from .manifest import build_animation_manifest
 from .model import MotionClip
@@ -111,6 +112,12 @@ def compile_motion(
     )
 
     export_render_set(normalized, output, scale=scale)
+    export_cutout_set(
+        normalized,
+        output,
+        columns=4,
+        preview_scale=max(1, scale),
+    )
     (output / "transforms.json").write_text(
         json.dumps(
             build_transform_manifest(normalized),
