@@ -289,6 +289,17 @@ def render_debug_frame(
         torque = float(weapon_diag.get("estimated_torque_nm", 0.0))
         draw.text((3, 23), f"SWORD w {omega:.0f}deg/s  T {torque:.1f}Nm", fill=DEBUG["weapon"])
 
+        tip_velocity = Vec2.from_any(
+            weapon_diag.get("tip_velocity_m_s", [0.0, 0.0])
+        )
+        _arrow(
+            draw,
+            frame.weapon.tip,
+            tip_velocity * 2.0,
+            DEBUG["trail"],
+            2,
+        )
+
 
     if system_diag:
         system_com_data = system_diag.get("system_com_px")
@@ -640,6 +651,7 @@ def render_inspection_frame(
         lines.extend([
             "",
             f"sword w {float(weapon_diag.get('angular_velocity_deg_s', 0.0)):.0f} deg/s",
+            f"tip v {float(weapon_diag.get('tip_speed_m_s', 0.0)):.2f} m/s",
             f"sword a {float(weapon_diag.get('angular_acceleration_deg_s2', 0.0)):.0f}",
             f"torque {float(weapon_diag.get('estimated_torque_nm', 0.0)):.1f} Nm",
             f"handle {float(weapon_diag.get('handle_force_magnitude_n', 0.0)):.0f} N",
