@@ -165,6 +165,99 @@ def _normalize_axial_pose(
     return out
 
 
+
+def _fit_shoulder_girdle_to_grips(
+    joints: dict[str, Vec2],
+    rest: RestGeometry,
+    primary_hand: str,
+    secondary_hand: str,
+    main_target: Vec2,
+    off_target: Vec2,
+    max_shift_px: float,
+    reach_margin_px: float = 0.5,
+    iterations: int = 6,
+) -> dict[str, Vec2]:
+    """Translate the shoulder girdle slightly so both sword grips are reachable.
+
+    Human shoulders are not welded to the rib cage: clavicle/scapula motion
+    allows a few centimeters of protraction/retraction. Modeling a bounded
+    shared shoulder translation is more realistic than letting an unreachable
+    IK target detach the hand from the sword or stretch the arm.
+
+    The shoulder width remains fixed; only the pair's center moves. This is a
+    deterministic 2D approximation, not a full scapulothoracic model.
+    """
+    if max_shift_px <= 0.0:
+        return joints
+
+    arm_specs = (
+        ("shoulder_r", "upper_arm_r", "forearm_r", main_target)
+        if primary_hand.endswith("_r")
+        else ("shoulder_l", "upper_arm_l", "forearm_l", main_target),
+        ("shoulder_l", "upper_arm_l", "forearm_l", off_target)
+        if secondary_hand.endswith("_l")
+        else ("shoulder_r", "upper_arm_r", "forearm_r", off_target),
+    )
+    if not all(spec[0] in joints for spec in arm_specs):
+        return joints
+
+    out = dict(joints)
+    total_shift = Vec2(0.0, 0.0)
+
+    for _ in range(max(1, iterations)):
+        correction = Vec2(0.0, 0.0)
+        active = 0
+
+        for shoulder_name, upper_name, lower_name, target in arm_specs:
+            shoulder = out[shoulder_name]
+            delta = target - shoulder
+            distance = delta.length()
+            if distance <= 1e-9:
+                continue
+
+            max_reach = (
+                rest.bone_lengths[upper_name]
+                + rest.bone_lengths[lower_name]
+                - reach_margin_px
+            )
+            min_reach = (
+                abs(
+                    rest.bone_lengths[upper_name]
+                    - rest.bone_lengths[lower_name]
+                )
+                + reach_margin_px
+            )
+            direction = delta.normalized()
+
+            if distance > max_reach:
+                correction = correction + direction * (distance - max_reach)
+                active += 1
+            elif distance < min_reach:
+                correction = correction - direction * (min_reach - distance)
+                active += 1
+
+        if active == 0:
+            break
+
+        step = correction * (1.0 / active)
+        remaining = max_shift_px - total_shift.length()
+        if remaining <= 1e-9:
+            break
+
+        step_length = step.length()
+        if step_length > remaining:
+            step = step.normalized() * remaining
+
+        total_shift = total_shift + step
+        out["shoulder_l"] = out["shoulder_l"] + step
+        out["shoulder_r"] = out["shoulder_r"] + step
+
+        if step.length() <= 1e-6:
+            break
+
+    return out
+
+
 def normalize_clip(clip: MotionClip) -> MotionClip:
     if not clip.frames:
         return clip
@@ -200,7 +293,26 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
         off = main + direction * (rest.grip_spacing * rest.off_grip_sign)
         weapon = WeaponPose(main, off, tip)
 
-        # 3. Hard two-handed attachment: hands follow sword, elbows are solved by IK.
+        # 3. Allow bounded shoulder-girdle translation before arm IK. This
+        # represents scapula/clavicle protraction and prevents small reach
+        # errors from turning into detached hands or stretched arms.
+        body_cfg = clip.dynamics.get("body", {})
+        joints = _fit_shoulder_girdle_to_grips(
+            joints,
+            rest,
+            clip.primary_hand,
+            clip.secondary_hand,
+            main,
+            off,
+            max_shift_px=float(
+                body_cfg.get("shoulder_girdle_max_shift_px", 4.0)
+            ),
+            reach_margin_px=float(
+                body_cfg.get("arm_reach_margin_px", 0.5)
+            ),
+        )
+
+        # 4. Hard two-handed attachment: hands follow sword, elbows are solved by IK.
         arm_specs = (
             (clip.primary_hand, "elbow_r", "shoulder_r", "upper_arm_r", "forearm_r", main),
             (clip.secondary_hand, "elbow_l", "shoulder_l", "upper_arm_l", "forearm_l", off),
@@ -219,7 +331,7 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
                 joints[hand_name] = hand
                 previous_mids[elbow_name] = elbow
 
-        # 4. Ground contacts are exact. Knees are solved while preserving bend direction.
+        # 5. Ground contacts are exact. Knees are solved while preserving bend direction.
         leg_specs = (
             ("foot_l", "knee_l", "hip_l", "thigh_l", "shin_l"),
             ("foot_r", "knee_r", "hip_r", "thigh_r", "shin_r"),
@@ -350,6 +462,74 @@ def validate_clip(clip: MotionClip, tolerance: float = 0.75) -> ValidationReport
                             f"{code}: {actual:.2f}px != {expected:.2f}px",
                         )
                     )
+
+
+        arm_reach_specs = (
+            (
+                "shoulder_r",
+                "upper_arm_r",
+                "forearm_r",
+                frame.weapon.grip_main,
+                "primary",
+            )
+            if clip.primary_hand.endswith("_r")
+            else (
+                "shoulder_l",
+                "upper_arm_l",
+                "forearm_l",
+                frame.weapon.grip_main,
+                "primary",
+            ),
+            (
+                "shoulder_l",
+                "upper_arm_l",
+                "forearm_l",
+                frame.weapon.grip_off,
+                "secondary",
+            )
+            if clip.secondary_hand.endswith("_l")
+            else (
+                "shoulder_r",
+                "upper_arm_r",
+                "forearm_r",
+                frame.weapon.grip_off,
+                "secondary",
+            ),
+        )
+        for shoulder_name, upper_name, lower_name, target, role in arm_reach_specs:
+            if shoulder_name not in frame.joints:
+                continue
+            distance = frame.joints[shoulder_name].distance_to(target)
+            maximum = (
+                rest.bone_lengths[upper_name]
+                + rest.bone_lengths[lower_name]
+            )
+            minimum = abs(
+                rest.bone_lengths[upper_name]
+                - rest.bone_lengths[lower_name]
+            )
+            if distance > maximum + tolerance:
+                issues.append(
+                    Issue(
+                        frame.frame,
+                        "arm_unreachable",
+                        (
+                            f"{role} grip is {distance:.2f}px from "
+                            f"{shoulder_name}, max reach {maximum:.2f}px"
+                        ),
+                    )
+                )
+            elif distance < minimum - tolerance:
+                issues.append(
+                    Issue(
+                        frame.frame,
+                        "arm_overcompressed",
+                        (
+                            f"{role} grip is {distance:.2f}px from "
+                            f"{shoulder_name}, min reach {minimum:.2f}px"
+                        ),
+                    )
+                )
 
         main_hand = frame.joints.get(clip.primary_hand)
         off_hand = frame.joints.get(clip.secondary_hand)
