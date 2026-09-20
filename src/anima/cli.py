@@ -8,6 +8,7 @@ from .analysis import analyze_motion
 from .authoring import build_clip_from_recipe_files
 from .compiler import compile_motion
 from .constraints import normalize_clip, validate_clip
+from .correction import build_render_correction_prompt
 from .model import MotionClip
 from .post_validate import validate_rendered_sheet
 from .retime_apply import auto_retime
@@ -143,6 +144,14 @@ def _cmd_verify_render(args: argparse.Namespace) -> int:
         print(f"render validation: {args.output}")
     else:
         print(payload)
+
+    if args.correction_prompt:
+        args.correction_prompt.write_text(
+            build_render_correction_prompt(report),
+            encoding="utf-8",
+        )
+        print(f"correction prompt: {args.correction_prompt}")
+
     return 0 if report["ok"] else 2
 
 
@@ -258,6 +267,11 @@ def build_parser() -> argparse.ArgumentParser:
     verify_cmd.add_argument("sheet", type=Path)
     verify_cmd.add_argument("--columns", type=int, default=4)
     verify_cmd.add_argument("--output", "-o", type=Path)
+    verify_cmd.add_argument(
+        "--correction-prompt",
+        type=Path,
+        help="Write a targeted ImageGen repair prompt for failed frames",
+    )
     verify_cmd.set_defaults(func=_cmd_verify_render)
     return parser
 
