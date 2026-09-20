@@ -87,6 +87,7 @@ def _artifact_checks(output: Path, frame_count: int) -> Check:
         output / "reference_map.json",
         output / "piece_manifest.json",
         output / "imagegen_prompt.txt",
+        output / "piecegen_prompt.txt",
         output / "control_sheet.png",
         output / "parts_sheet.png",
         output / "cutout_sheet.png",
