@@ -1,0 +1,421 @@
+{
+  "version": 1,
+  "canvas": {
+    "width": 128,
+    "height": 128,
+    "ground_y": 108
+  },
+  "rig": "humanoid_twohand_sword_v1",
+  "timing": {
+    "fps": 10
+  },
+  "grip": {
+    "primary_hand": "hand_r",
+    "secondary_hand": "hand_l"
+  },
+  "metadata": {
+    "name": "twohand_sword_slash_parametric_v1",
+    "source": "derived from canonical full-joint motion",
+    "note": "Compact authoring source: axial pose + weapon + feet + IK poles.",
+    "occlusion_policy": "explicit_arm_depth_v1"
+  },
+  "poses": [
+    {
+      "frame": 0,
+      "root": [
+        64,
+        78
+      ],
+      "main_grip": [
+        78,
+        64
+      ],
+      "sword_angle_deg": -46.33221985386964,
+      "foot_l": [
+        52,
+        108
+      ],
+      "foot_r": [
+        76,
+        108
+      ],
+      "torso_lean_deg": 0,
+      "shoulder_line_deg": 0,
+      "hip_line_deg": 0,
+      "contacts": {
+        "foot_l": "planted",
+        "foot_r": "planted"
+      },
+      "label": "ready",
+      "time_s": 0,
+      "kinematic_stop": true,
+      "elbow_pole_l": [
+        63,
+        66
+      ],
+      "elbow_pole_r": [
+        70,
+        68
+      ],
+      "knee_pole_l": [
+        52,
+        92
+      ],
+      "knee_pole_r": [
+        76,
+        92
+      ],
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 1,
+      "root": [
+        62,
+        79
+      ],
+      "main_grip": [
+        68,
+        47
+      ],
+      "sword_angle_deg": -114.90476880809518,
+      "foot_l": [
+        52,
+        108
+      ],
+      "foot_r": [
+        76,
+        108
+      ],
+      "torso_lean_deg": -5.710593137499642,
+      "shoulder_line_deg": -16.69924423399362,
+      "hip_line_deg": -7.125016348901798,
+      "contacts": {
+        "foot_l": "planted",
+        "foot_r": "planted"
+      },
+      "label": "anticipation",
+      "time_s": 0.13,
+      "elbow_pole_l": [
+        62,
+        55
+      ],
+      "elbow_pole_r": [
+        66,
+        51
+      ],
+      "knee_pole_l": [
+        51,
+        92
+      ],
+      "knee_pole_r": [
+        75,
+        92
+      ],
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 2,
+      "root": [
+        61,
+        80
+      ],
+      "main_grip": [
+        63,
+        43
+      ],
+      "sword_angle_deg": -131.0090869015702,
+      "foot_l": [
+        52,
+        108
+      ],
+      "foot_r": [
+        76,
+        108
+      ],
+      "torso_lean_deg": -8.530765609948133,
+      "shoulder_line_deg": -21.80140948635181,
+      "hip_line_deg": -7.125016348901798,
+      "contacts": {
+        "foot_l": "planted",
+        "foot_r": "planted"
+      },
+      "label": "max_windup",
+      "time_s": 0.3,
+      "elbow_pole_l": [
+        58,
+        52
+      ],
+      "elbow_pole_r": [
+        61,
+        49
+      ],
+      "knee_pole_l": [
+        50,
+        92
+      ],
+      "knee_pole_r": [
+        74,
+        92
+      ],
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 3,
+      "root": [
+        63,
+        79
+      ],
+      "main_grip": [
+        70,
+        47
+      ],
+      "sword_angle_deg": -105.42216131873867,
+      "foot_l": [
+        52,
+        108
+      ],
+      "foot_r": [
+        76,
+        108
+      ],
+      "torso_lean_deg": 2.8624052261117474,
+      "shoulder_line_deg": 5.710593137499642,
+      "hip_line_deg": -7.125016348901798,
+      "contacts": {
+        "foot_l": "planted",
+        "foot_r": "planted"
+      },
+      "label": "attack_start",
+      "time_s": 0.39,
+      "elbow_pole_l": [
+        64,
+        56
+      ],
+      "elbow_pole_r": [
+        66,
+        51
+      ],
+      "knee_pole_l": [
+        51,
+        92
+      ],
+      "knee_pole_r": [
+        75,
+        92
+      ],
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 4,
+      "root": [
+        66,
+        78
+      ],
+      "main_grip": [
+        86,
+        60
+      ],
+      "sword_angle_deg": 0,
+      "foot_l": [
+        53,
+        108
+      ],
+      "foot_r": [
+        76,
+        108
+      ],
+      "torso_lean_deg": 11.309932474020213,
+      "shoulder_line_deg": 16.69924423399362,
+      "hip_line_deg": 7.125016348901798,
+      "contacts": {
+        "foot_l": "grounded",
+        "foot_r": "planted"
+      },
+      "label": "impact",
+      "time_s": 0.48,
+      "elbow_pole_l": [
+        72,
+        59
+      ],
+      "elbow_pole_r": [
+        80,
+        60
+      ],
+      "knee_pole_l": [
+        55,
+        92
+      ],
+      "knee_pole_r": [
+        78,
+        92
+      ],
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 5,
+      "root": [
+        68,
+        79
+      ],
+      "main_grip": [
+        83,
+        72
+      ],
+      "sword_angle_deg": 48.990913098429786,
+      "foot_l": [
+        54,
+        108
+      ],
+      "foot_r": [
+        76,
+        108
+      ],
+      "torso_lean_deg": 11.888658039627973,
+      "shoulder_line_deg": 16.69924423399362,
+      "hip_line_deg": 7.125016348901798,
+      "contacts": {
+        "foot_l": "grounded",
+        "foot_r": "planted"
+      },
+      "label": "follow_through",
+      "time_s": 0.6,
+      "elbow_pole_l": [
+        72,
+        64
+      ],
+      "elbow_pole_r": [
+        79,
+        67
+      ],
+      "knee_pole_l": [
+        56,
+        92
+      ],
+      "knee_pole_r": [
+        79,
+        92
+      ],
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 6,
+      "root": [
+        67,
+        80
+      ],
+      "main_grip": [
+        79,
+        69
+      ],
+      "sword_angle_deg": 42.27368900609373,
+      "foot_l": [
+        53,
+        108
+      ],
+      "foot_r": [
+        76,
+        108
+      ],
+      "torso_lean_deg": 6.009005957494525,
+      "shoulder_line_deg": 11.309932474020213,
+      "hip_line_deg": 0,
+      "contacts": {
+        "foot_l": "grounded",
+        "foot_r": "planted"
+      },
+      "label": "recovery",
+      "time_s": 0.83,
+      "elbow_pole_l": [
+        68,
+        65
+      ],
+      "elbow_pole_r": [
+        75,
+        66
+      ],
+      "knee_pole_l": [
+        55,
+        92
+      ],
+      "knee_pole_r": [
+        78,
+        92
+      ],
+      "layer_order": [
+        "torso",
+        "left_arm"
+      ]
+    },
+    {
+      "frame": 7,
+      "root": [
+        64,
+        78
+      ],
+      "main_grip": [
+        78,
+        64
+      ],
+      "sword_angle_deg": -46.33221985386964,
+      "foot_l": [
+        52,
+        108
+      ],
+      "foot_r": [
+        76,
+        108
+      ],
+      "torso_lean_deg": 0,
+      "shoulder_line_deg": 0,
+      "hip_line_deg": 0,
+      "contacts": {
+        "foot_l": "planted",
+        "foot_r": "planted"
+      },
+      "label": "return",
+      "time_s": 1.06,
+      "kinematic_stop": true,
+      "elbow_pole_l": [
+        63,
+        66
+      ],
+      "elbow_pole_r": [
+        70,
+        68
+      ],
+      "knee_pole_l": [
+        52,
+        92
+      ],
+      "knee_pole_r": [
+        76,
+        92
+      ],
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
+      ]
+    }
+  ]
+}

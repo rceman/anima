@@ -1,0 +1,951 @@
+{
+  "version": 1,
+  "canvas": {
+    "width": 128,
+    "height": 128,
+    "ground_y": 108
+  },
+  "rig": "humanoid_twohand_sword_v1",
+  "timing": {
+    "fps": 10
+  },
+  "grip": {
+    "primary_hand": "hand_r",
+    "secondary_hand": "hand_l"
+  },
+  "metadata": {
+    "name": "twohand_sword_slash_01",
+    "intent": "Right-facing grounded two-handed sword slash control motion",
+    "occlusion_policy": "explicit_arm_depth_v1"
+  },
+  "frames": [
+    {
+      "frame": 0,
+      "label": "ready",
+      "root": [
+        64,
+        78
+      ],
+      "joints": {
+        "head": [
+          64,
+          42
+        ],
+        "chest": [
+          64,
+          58
+        ],
+        "shoulder_l": [
+          59,
+          57
+        ],
+        "shoulder_r": [
+          69,
+          57
+        ],
+        "elbow_l": [
+          63,
+          66
+        ],
+        "elbow_r": [
+          70,
+          68
+        ],
+        "hand_l": [
+          73,
+          69
+        ],
+        "hand_r": [
+          78,
+          64
+        ],
+        "hip_l": [
+          60,
+          78
+        ],
+        "hip_r": [
+          68,
+          78
+        ],
+        "knee_l": [
+          52,
+          92
+        ],
+        "knee_r": [
+          76,
+          92
+        ],
+        "foot_l": [
+          52,
+          108
+        ],
+        "foot_r": [
+          76,
+          108
+        ]
+      },
+      "weapon": {
+        "grip_main": [
+          78,
+          64
+        ],
+        "grip_off": [
+          73,
+          69
+        ],
+        "tip": [
+          99,
+          42
+        ]
+      },
+      "contacts": {
+        "foot_l": "planted",
+        "foot_r": "planted"
+      },
+      "ik_poles": {
+        "elbow_l": [
+          63,
+          66
+        ],
+        "elbow_r": [
+          70,
+          68
+        ],
+        "knee_l": [
+          52,
+          92
+        ],
+        "knee_r": [
+          76,
+          92
+        ]
+      },
+      "time_s": 0,
+      "kinematic_stop": true,
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 1,
+      "label": "anticipation",
+      "root": [
+        62,
+        79
+      ],
+      "joints": {
+        "head": [
+          59,
+          43
+        ],
+        "chest": [
+          60,
+          59
+        ],
+        "shoulder_l": [
+          55,
+          59
+        ],
+        "shoulder_r": [
+          65,
+          56
+        ],
+        "elbow_l": [
+          62,
+          55
+        ],
+        "elbow_r": [
+          66,
+          51
+        ],
+        "hand_l": [
+          71,
+          53
+        ],
+        "hand_r": [
+          68,
+          47
+        ],
+        "hip_l": [
+          58,
+          79
+        ],
+        "hip_r": [
+          66,
+          78
+        ],
+        "knee_l": [
+          51,
+          92
+        ],
+        "knee_r": [
+          75,
+          92
+        ],
+        "foot_l": [
+          52,
+          108
+        ],
+        "foot_r": [
+          76,
+          108
+        ]
+      },
+      "weapon": {
+        "grip_main": [
+          68,
+          47
+        ],
+        "grip_off": [
+          71,
+          53
+        ],
+        "tip": [
+          55,
+          19
+        ]
+      },
+      "contacts": {
+        "foot_l": "planted",
+        "foot_r": "planted"
+      },
+      "ik_poles": {
+        "elbow_l": [
+          62,
+          55
+        ],
+        "elbow_r": [
+          66,
+          51
+        ],
+        "knee_l": [
+          51,
+          92
+        ],
+        "knee_r": [
+          75,
+          92
+        ]
+      },
+      "time_s": 0.13,
+      "kinematic_stop": false,
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 2,
+      "label": "max_windup",
+      "root": [
+        61,
+        80
+      ],
+      "joints": {
+        "head": [
+          56,
+          44
+        ],
+        "chest": [
+          58,
+          60
+        ],
+        "shoulder_l": [
+          53,
+          61
+        ],
+        "shoulder_r": [
+          63,
+          57
+        ],
+        "elbow_l": [
+          58,
+          52
+        ],
+        "elbow_r": [
+          61,
+          49
+        ],
+        "hand_l": [
+          68,
+          48
+        ],
+        "hand_r": [
+          63,
+          43
+        ],
+        "hip_l": [
+          57,
+          80
+        ],
+        "hip_r": [
+          65,
+          79
+        ],
+        "knee_l": [
+          50,
+          92
+        ],
+        "knee_r": [
+          74,
+          92
+        ],
+        "foot_l": [
+          52,
+          108
+        ],
+        "foot_r": [
+          76,
+          108
+        ]
+      },
+      "weapon": {
+        "grip_main": [
+          63,
+          43
+        ],
+        "grip_off": [
+          68,
+          48
+        ],
+        "tip": [
+          43,
+          20
+        ]
+      },
+      "contacts": {
+        "foot_l": "planted",
+        "foot_r": "planted"
+      },
+      "ik_poles": {
+        "elbow_l": [
+          58,
+          52
+        ],
+        "elbow_r": [
+          61,
+          49
+        ],
+        "knee_l": [
+          50,
+          92
+        ],
+        "knee_r": [
+          74,
+          92
+        ]
+      },
+      "time_s": 0.3,
+      "kinematic_stop": false,
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 3,
+      "label": "attack_start",
+      "root": [
+        63,
+        79
+      ],
+      "joints": {
+        "head": [
+          65,
+          43
+        ],
+        "chest": [
+          64,
+          59
+        ],
+        "shoulder_l": [
+          59,
+          58
+        ],
+        "shoulder_r": [
+          69,
+          59
+        ],
+        "elbow_l": [
+          64,
+          56
+        ],
+        "elbow_r": [
+          66,
+          51
+        ],
+        "hand_l": [
+          72,
+          54
+        ],
+        "hand_r": [
+          70,
+          47
+        ],
+        "hip_l": [
+          59,
+          79
+        ],
+        "hip_r": [
+          67,
+          78
+        ],
+        "knee_l": [
+          51,
+          92
+        ],
+        "knee_r": [
+          75,
+          92
+        ],
+        "foot_l": [
+          52,
+          108
+        ],
+        "foot_r": [
+          76,
+          108
+        ]
+      },
+      "weapon": {
+        "grip_main": [
+          70,
+          47
+        ],
+        "grip_off": [
+          72,
+          54
+        ],
+        "tip": [
+          62,
+          18
+        ]
+      },
+      "contacts": {
+        "foot_l": "planted",
+        "foot_r": "planted"
+      },
+      "ik_poles": {
+        "elbow_l": [
+          64,
+          56
+        ],
+        "elbow_r": [
+          66,
+          51
+        ],
+        "knee_l": [
+          51,
+          92
+        ],
+        "knee_r": [
+          75,
+          92
+        ]
+      },
+      "time_s": 0.39,
+      "kinematic_stop": false,
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 4,
+      "label": "impact",
+      "root": [
+        66,
+        78
+      ],
+      "joints": {
+        "head": [
+          73,
+          42
+        ],
+        "chest": [
+          70,
+          58
+        ],
+        "shoulder_l": [
+          65,
+          57
+        ],
+        "shoulder_r": [
+          75,
+          60
+        ],
+        "elbow_l": [
+          72,
+          59
+        ],
+        "elbow_r": [
+          80,
+          60
+        ],
+        "hand_l": [
+          80,
+          60
+        ],
+        "hand_r": [
+          86,
+          60
+        ],
+        "hip_l": [
+          62,
+          78
+        ],
+        "hip_r": [
+          70,
+          79
+        ],
+        "knee_l": [
+          55,
+          92
+        ],
+        "knee_r": [
+          78,
+          92
+        ],
+        "foot_l": [
+          53,
+          108
+        ],
+        "foot_r": [
+          76,
+          108
+        ]
+      },
+      "weapon": {
+        "grip_main": [
+          86,
+          60
+        ],
+        "grip_off": [
+          80,
+          60
+        ],
+        "tip": [
+          115,
+          60
+        ]
+      },
+      "contacts": {
+        "foot_l": "grounded",
+        "foot_r": "planted"
+      },
+      "ik_poles": {
+        "elbow_l": [
+          72,
+          59
+        ],
+        "elbow_r": [
+          80,
+          60
+        ],
+        "knee_l": [
+          55,
+          92
+        ],
+        "knee_r": [
+          78,
+          92
+        ]
+      },
+      "time_s": 0.48,
+      "kinematic_stop": false,
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 5,
+      "label": "follow_through",
+      "root": [
+        68,
+        79
+      ],
+      "joints": {
+        "head": [
+          75,
+          44
+        ],
+        "chest": [
+          72,
+          60
+        ],
+        "shoulder_l": [
+          67,
+          59
+        ],
+        "shoulder_r": [
+          77,
+          62
+        ],
+        "elbow_l": [
+          72,
+          64
+        ],
+        "elbow_r": [
+          79,
+          67
+        ],
+        "hand_l": [
+          78,
+          67
+        ],
+        "hand_r": [
+          83,
+          72
+        ],
+        "hip_l": [
+          64,
+          79
+        ],
+        "hip_r": [
+          72,
+          80
+        ],
+        "knee_l": [
+          56,
+          92
+        ],
+        "knee_r": [
+          79,
+          92
+        ],
+        "foot_l": [
+          54,
+          108
+        ],
+        "foot_r": [
+          76,
+          108
+        ]
+      },
+      "weapon": {
+        "grip_main": [
+          83,
+          72
+        ],
+        "grip_off": [
+          78,
+          67
+        ],
+        "tip": [
+          103,
+          95
+        ]
+      },
+      "contacts": {
+        "foot_l": "grounded",
+        "foot_r": "planted"
+      },
+      "ik_poles": {
+        "elbow_l": [
+          72,
+          64
+        ],
+        "elbow_r": [
+          79,
+          67
+        ],
+        "knee_l": [
+          56,
+          92
+        ],
+        "knee_r": [
+          79,
+          92
+        ]
+      },
+      "time_s": 0.6,
+      "kinematic_stop": false,
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    {
+      "frame": 6,
+      "label": "recovery",
+      "root": [
+        67,
+        80
+      ],
+      "joints": {
+        "head": [
+          71,
+          45
+        ],
+        "chest": [
+          69,
+          61
+        ],
+        "shoulder_l": [
+          64,
+          60
+        ],
+        "shoulder_r": [
+          74,
+          62
+        ],
+        "elbow_l": [
+          68,
+          65
+        ],
+        "elbow_r": [
+          75,
+          66
+        ],
+        "hand_l": [
+          73,
+          70
+        ],
+        "hand_r": [
+          79,
+          69
+        ],
+        "hip_l": [
+          63,
+          80
+        ],
+        "hip_r": [
+          71,
+          80
+        ],
+        "knee_l": [
+          55,
+          92
+        ],
+        "knee_r": [
+          78,
+          92
+        ],
+        "foot_l": [
+          53,
+          108
+        ],
+        "foot_r": [
+          76,
+          108
+        ]
+      },
+      "weapon": {
+        "grip_main": [
+          79,
+          69
+        ],
+        "grip_off": [
+          73,
+          70
+        ],
+        "tip": [
+          101,
+          89
+        ]
+      },
+      "contacts": {
+        "foot_l": "grounded",
+        "foot_r": "planted"
+      },
+      "ik_poles": {
+        "elbow_l": [
+          68,
+          65
+        ],
+        "elbow_r": [
+          75,
+          66
+        ],
+        "knee_l": [
+          55,
+          92
+        ],
+        "knee_r": [
+          78,
+          92
+        ]
+      },
+      "time_s": 0.83,
+      "kinematic_stop": false,
+      "layer_order": [
+        "torso",
+        "left_arm"
+      ]
+    },
+    {
+      "frame": 7,
+      "label": "return",
+      "root": [
+        64,
+        78
+      ],
+      "joints": {
+        "head": [
+          64,
+          42
+        ],
+        "chest": [
+          64,
+          58
+        ],
+        "shoulder_l": [
+          59,
+          57
+        ],
+        "shoulder_r": [
+          69,
+          57
+        ],
+        "elbow_l": [
+          63,
+          66
+        ],
+        "elbow_r": [
+          70,
+          68
+        ],
+        "hand_l": [
+          73,
+          69
+        ],
+        "hand_r": [
+          78,
+          64
+        ],
+        "hip_l": [
+          60,
+          78
+        ],
+        "hip_r": [
+          68,
+          78
+        ],
+        "knee_l": [
+          52,
+          92
+        ],
+        "knee_r": [
+          76,
+          92
+        ],
+        "foot_l": [
+          52,
+          108
+        ],
+        "foot_r": [
+          76,
+          108
+        ]
+      },
+      "weapon": {
+        "grip_main": [
+          78,
+          64
+        ],
+        "grip_off": [
+          73,
+          69
+        ],
+        "tip": [
+          99,
+          42
+        ]
+      },
+      "contacts": {
+        "foot_l": "planted",
+        "foot_r": "planted"
+      },
+      "ik_poles": {
+        "elbow_l": [
+          63,
+          66
+        ],
+        "elbow_r": [
+          70,
+          68
+        ],
+        "knee_l": [
+          52,
+          92
+        ],
+        "knee_r": [
+          76,
+          92
+        ]
+      },
+      "time_s": 1.06,
+      "kinematic_stop": true,
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
+      ]
+    }
+  ],
+  "dynamics": {
+    "weapon": {
+      "mass_kg": 1.35,
+      "effective_length_m": 0.92,
+      "inertia_factor": 0.33,
+      "damping_nm_per_rad_s": 0.8,
+      "max_braking_torque_nm": 40,
+      "impact_frame": 4,
+      "collision": false,
+      "center_of_mass_fraction": 0.45,
+      "max_handle_force_n": 1200,
+      "max_drive_torque_nm": 32,
+      "enforce_drive_torque_limit": true
+    },
+    "body": {
+      "mass_kg": 78,
+      "pixels_per_meter": 40,
+      "foot_half_width_px": 4,
+      "max_planted_slip_px": 0.25,
+      "max_com_accel_m_s2": 35,
+      "max_com_jerk_m_s3": 350,
+      "gravity_m_s2": 9.81,
+      "friction_coefficient": 0.8,
+      "strength": {
+        "primary_force_fraction": 0.6,
+        "shoulder_limit_nm": 150,
+        "elbow_limit_nm": 100,
+        "enforce_limits": false
+      },
+      "joint_limits_deg": {
+        "elbow_l": [
+          8,
+          178
+        ],
+        "elbow_r": [
+          8,
+          178
+        ],
+        "knee_l": [
+          20,
+          175
+        ],
+        "knee_r": [
+          20,
+          175
+        ]
+      },
+      "shoulder_girdle_max_shift_px": 4,
+      "arm_reach_margin_px": 0.5,
+      "arm_max_extension_ratio": 0.965,
+      "arm_min_extension_ratio": 0.15,
+      "dynamic_balance_tolerance_px": 1.5,
+      "enforce_dynamic_balance": false,
+      "angular_momentum": {
+        "body_radius_of_gyration_m": 0.3,
+        "body_spin_scale": 1,
+        "weapon_spin_scale": 1,
+        "orbital_scale": 1
+      }
+    }
+  }
+}

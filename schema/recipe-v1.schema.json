@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rceman/anima/schema/recipe-v1.schema.json",
+  "title": "Anima Parametric Motion Recipe v1",
+  "type": "object",
+  "required": [
+    "version",
+    "poses"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "canvas": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ground_y": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rig": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timing": {
+      "type": "object",
+      "properties": {
+        "fps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "grip": {
+      "type": "object",
+      "properties": {
+        "primary_hand": {
+          "type": "string"
+        },
+        "secondary_hand": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "dynamics": {
+      "type": "object"
+    },
+    "poses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "frame",
+          "root",
+          "main_grip",
+          "sword_angle_deg",
+          "foot_l",
+          "foot_r"
+        ],
+        "properties": {
+          "frame": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "time_s": {
+            "type": "number",
+            "minimum": 0
+          },
+          "label": {
+            "type": "string"
+          },
+          "kinematic_stop": {
+            "type": "boolean"
+          },
+          "root": {
+            "$ref": "#/$defs/vec2"
+          },
+          "main_grip": {
+            "$ref": "#/$defs/vec2"
+          },
+          "sword_angle_deg": {
+            "type": "number"
+          },
+          "foot_l": {
+            "$ref": "#/$defs/vec2"
+          },
+          "foot_r": {
+            "$ref": "#/$defs/vec2"
+          },
+          "torso_lean_deg": {
+            "type": "number"
+          },
+          "shoulder_line_deg": {
+            "type": "number"
+          },
+          "hip_line_deg": {
+            "type": "number"
+          },
+          "elbow_pole_l": {
+            "$ref": "#/$defs/vec2"
+          },
+          "elbow_pole_r": {
+            "$ref": "#/$defs/vec2"
+          },
+          "knee_pole_l": {
+            "$ref": "#/$defs/vec2"
+          },
+          "knee_pole_r": {
+            "$ref": "#/$defs/vec2"
+          },
+          "contacts": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "enum": [
+                    "planted",
+                    "grounded",
+                    "free"
+                  ]
+                }
+              ]
+            }
+          },
+          "layer_order": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "reference": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "vec2": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    }
+  }
+}
