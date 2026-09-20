@@ -128,6 +128,7 @@ def _compile_canonical(
     *,
     output: Path,
     auto_retime: int,
+    sample_fps: float | None,
 ) -> tuple[Check, MotionClip]:
     canonical = ROOT / "examples" / "twohand_sword_slash"
     rest_motion = canonical / "motion.json"
@@ -145,6 +146,7 @@ def _compile_canonical(
         scale=1,
         strict_physics=False,
         auto_retime_iterations=auto_retime,
+        sample_fps=sample_fps,
     )
 
     geometry = _load_json(output / "validation.json")
@@ -305,6 +307,12 @@ def main() -> int:
         default=ROOT / "output" / "local-check",
     )
     parser.add_argument(
+        "--sample-fps",
+        type=float,
+        default=None,
+        help="Optionally time-resample the canonical motion before rendering",
+    )
+    parser.add_argument(
         "--auto-retime",
         type=int,
         default=3,
@@ -346,6 +354,7 @@ def main() -> int:
     compile_check, normalized = _compile_canonical(
         output=output,
         auto_retime=args.auto_retime,
+        sample_fps=args.sample_fps,
     )
     checks.append(compile_check)
     _print_result(compile_check)
