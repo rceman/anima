@@ -88,7 +88,7 @@ def test_grounded_unreachable_foot_is_clamped_along_ground():
     assert normalized.frames[1].joints["foot_r"].x < 120
 
 
-def test_two_bone_ik_prefers_previous_bend_branch():
+def test_two_bone_ik_keeps_authored_pole_authoritative():
     start = Vec2(0, 0)
     target = Vec2(8, 0)
 
@@ -99,7 +99,7 @@ def test_two_bone_ik_prefers_previous_bend_branch():
         5,
         bend_hint=Vec2(4, 3),
     )
-    lower_candidate, _, _ = solve_two_bone(
+    still_upper, _, _ = solve_two_bone(
         start,
         target,
         5,
@@ -109,6 +109,22 @@ def test_two_bone_ik_prefers_previous_bend_branch():
     )
 
     assert upper_candidate.y > 0
+    assert still_upper.y > 0
+
+
+def test_two_bone_ik_can_intentionally_change_bend_side_with_new_pole():
+    start = Vec2(0, 0)
+    target = Vec2(8, 0)
+
+    lower_candidate, _, _ = solve_two_bone(
+        start,
+        target,
+        5,
+        5,
+        bend_hint=Vec2(4, -3),
+        previous_mid=Vec2(4, 3),
+    )
+
     assert lower_candidate.y < 0
 
 
