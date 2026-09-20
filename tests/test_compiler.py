@@ -58,6 +58,7 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     assert inspection_preview.size == (1024, 512)
 
     assert (tmp_path / "dynamics.json").exists()
+    assert (tmp_path / "occlusion.json").exists()
     assert (tmp_path / "retime_history.json").exists()
     assert (tmp_path / "diagnostics_summary.json").exists()
     assert (tmp_path / "animation_manifest.json").exists()
