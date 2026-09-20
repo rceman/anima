@@ -219,6 +219,11 @@ def build_piece_manifest(
             "coordinates. Keep all pixels belonging to that named body piece "
             "on its own transparent layer."
         ),
+        "piece_sheet_order": [
+            name
+            for name in PIECE_ORDER
+            if name in pieces
+        ],
         "pieces": pieces,
     }
 
@@ -367,6 +372,79 @@ def render_cutout_frame(
     return output
 
 
+
+
+def _piece_contact_sheet(
+    pieces: dict[str, Image.Image],
+    columns: int = 4,
+    preserve_piece_colors: bool = False,
+) -> Image.Image:
+    ordered = [
+        name
+        for name in PIECE_ORDER
+        if name in pieces
+    ]
+    if not ordered:
+        raise ValueError("No bind pieces")
+
+    width, height = next(iter(pieces.values())).size
+    rows = math.ceil(len(ordered) / columns)
+    sheet = Image.new(
+        "RGB",
+        (columns * width, rows * height),
+        BACKGROUND,
+    )
+    semantic_by_piece = {
+        piece: semantic
+        for semantic, names in SEMANTIC_PIECES.items()
+        for piece in names
+    }
+
+    for index, name in enumerate(ordered):
+        piece = pieces[name].convert("RGBA")
+        cell = Image.new("RGB", (width, height), BACKGROUND)
+        if preserve_piece_colors:
+            cell.paste(
+                piece.convert("RGB"),
+                (0, 0),
+                piece.getchannel("A"),
+            )
+        else:
+            color = CUTOUT[semantic_by_piece[name]]
+            color_layer = Image.new("RGB", (width, height), color)
+            cell.paste(
+                color_layer,
+                (0, 0),
+                piece.getchannel("A"),
+            )
+        sheet.paste(
+            cell,
+            (
+                (index % columns) * width,
+                (index // columns) * height,
+            ),
+        )
+    return sheet
+
+
+def _review_frame(
+    debug: Image.Image,
+    control: Image.Image,
+    cutout: Image.Image,
+) -> Image.Image:
+    debug = debug.convert("RGB")
+    control = control.convert("RGB")
+    cutout = cutout.convert("RGB")
+    width = debug.width + control.width + cutout.width
+    height = max(debug.height, control.height, cutout.height)
+    review = Image.new("RGB", (width, height), BACKGROUND)
+    x = 0
+    for panel in (debug, control, cutout):
+        review.paste(panel, (x, 0))
+        x += panel.width
+    return review
+
+
 def _sheet(
     frames: list[Image.Image],
     columns: int,
@@ -426,6 +504,12 @@ def export_cutout_set(
     for name, mask in masks.items():
         mask.save(bind_dir / f"{name}.png")
 
+    _piece_contact_sheet(
+        masks,
+        columns=4,
+        preserve_piece_colors=use_painted_pieces,
+    ).save(output / "bind_piece_sheet.png")
+
     (output / "piece_manifest.json").write_text(
         json.dumps(
             {
@@ -476,3 +560,39 @@ def export_cutout_set(
         loop=0,
         disposal=2,
     )
+
+
+    debug_dir = output / "debug_frames"
+    control_dir = output / "control_frames"
+    if debug_dir.exists() and control_dir.exists():
+        review_frames: list[Image.Image] = []
+        for index, cutout in enumerate(frames):
+            debug_path = debug_dir / f"frame_{index:02d}.png"
+            control_path = control_dir / f"frame_{index:02d}.png"
+            if not debug_path.exists() or not control_path.exists():
+                review_frames = []
+                break
+            review = _review_frame(
+                Image.open(debug_path),
+                Image.open(control_path),
+                cutout,
+            )
+            review_frames.append(
+                review.resize(
+                    (
+                        review.width * preview_scale,
+                        review.height * preview_scale,
+                    ),
+                    Image.Resampling.NEAREST,
+                )
+            )
+
+        if review_frames:
+            review_frames[0].save(
+                output / "rig_review_preview.gif",
+                save_all=True,
+                append_images=review_frames[1:],
+                duration=_durations_ms(clip),
+                loop=0,
+                disposal=2,
+            )
