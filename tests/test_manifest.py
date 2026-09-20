@@ -15,6 +15,7 @@ def pose(frame_no: int, time_s: float, label: str) -> FramePose:
         contacts={"foot_l": "planted"},
         label=label,
         time_s=time_s,
+        layer_order=["left_arm", "torso", "right_arm"],
     )
 
 
@@ -40,3 +41,26 @@ def test_manifest_preserves_nonuniform_timing_and_impact_event():
     assert [frame["duration_ms"] for frame in manifest["frames"]] == [100, 250, 250]
     assert manifest["frames"][1]["events"] == ["impact"]
     assert manifest["frames"][0]["contacts"]["foot_l"] == "planted"
+
+
+def test_manifest_exports_resolved_layer_order():
+    clip = MotionClip(
+        width=128,
+        height=128,
+        ground_y=108,
+        fps=12,
+        rig="test",
+        frames=[pose(0, 0.0, "ready")],
+    )
+
+    manifest = build_animation_manifest(clip, columns=1)
+
+    assert manifest["frames"][0]["layer_order"] == [
+        "left_leg",
+        "right_leg",
+        "left_arm",
+        "torso",
+        "right_arm",
+        "head",
+        "weapon",
+    ]
