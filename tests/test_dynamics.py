@@ -115,3 +115,18 @@ def test_enforced_collision_mismatch_is_reported():
     codes = {warning["code"] for warning in report["warnings"]}
 
     assert "collision_response_mismatch" in codes
+
+
+def test_weapon_report_tracks_tip_speed():
+    clip = clip_for_mass(1.3)
+    report = analyze_weapon_dynamics(clip)
+
+    assert all(
+        "tip_speed_m_s" in frame
+        and "tip_velocity_m_s" in frame
+        for frame in report["frames"]
+    )
+    assert max(
+        frame["tip_speed_m_s"]
+        for frame in report["frames"]
+    ) >= 0.0
