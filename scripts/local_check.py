@@ -83,12 +83,17 @@ def _artifact_checks(output: Path, frame_count: int) -> Check:
         output / "timing_recommendation.json",
         output / "diagnostics_summary.json",
         output / "animation_manifest.json",
+        output / "transforms.json",
+        output / "reference_map.json",
+        output / "piece_manifest.json",
         output / "imagegen_prompt.txt",
         output / "control_sheet.png",
         output / "parts_sheet.png",
+        output / "cutout_sheet.png",
         output / "debug_sheet.png",
         output / "control_preview.gif",
         output / "parts_preview.gif",
+        output / "cutout_preview.gif",
         output / "inspection_preview.gif",
     ]
     missing = [str(path) for path in required if not path.exists()]
@@ -98,6 +103,7 @@ def _artifact_checks(output: Path, frame_count: int) -> Check:
         image_checks = [
             _assert_image_size(output / "control_sheet.png", sheet),
             _assert_image_size(output / "parts_sheet.png", sheet),
+            _assert_image_size(output / "cutout_sheet.png", sheet),
         ]
         for index in range(frame_count):
             image_checks.append(
@@ -109,6 +115,12 @@ def _artifact_checks(output: Path, frame_count: int) -> Check:
             image_checks.append(
                 _assert_image_size(
                     output / "parts_frames" / f"frame_{index:02d}.png",
+                    cell,
+                )
+            )
+            image_checks.append(
+                _assert_image_size(
+                    output / "cutout_frames" / f"frame_{index:02d}.png",
                     cell,
                 )
             )
