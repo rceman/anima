@@ -72,7 +72,31 @@ The preferred source is a compact `recipe.json` containing, per key pose:
 - left/right foot position and contact mode;
 - optional elbow/knee pole hints;
 - real timestamp;
-- optional semantic layer order.
+- optional semantic layer order;
+- optional source-reference provenance.
+
+For reference-derived motion, attach provenance to every semantic key when it is
+known:
+
+```json
+{
+  "frame": 4,
+  "label": "impact",
+  "time_s": 0.48,
+  "reference": {
+    "kind": "video",
+    "source_time_s": 1.842,
+    "source_frame": 111,
+    "confidence": 0.92,
+    "notes": "right wrist partly occluded; sword line inferred from blade"
+  }
+}
+```
+
+`time_s` is the authored animation clock and may later change during retiming.
+`reference.source_time_s` is provenance and never changes. The compiler writes
+all preserved reference keys to `reference_map.json`, making it possible to
+audit exactly which source moments produced the final motion.
 
 Anima reconstructs the full axial rig and weapon, then solves elbows/knees using
 the canonical bone lengths and IK constraints.
