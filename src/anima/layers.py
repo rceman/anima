@@ -36,14 +36,25 @@ def resolve_layer_order(order: Iterable[str] | None) -> tuple[str, ...]:
     if len(set(requested)) != len(requested):
         raise ValueError("Semantic layer order contains duplicates")
 
-    return tuple(
-        requested
-        + [
-            name
-            for name in DEFAULT_LAYER_ORDER
-            if name not in requested
-        ]
+    if not requested:
+        return DEFAULT_LAYER_ORDER
+
+    # Treat a partial order as a local permutation of the named layers while
+    # every unnamed layer keeps its canonical z-slot. Example:
+    # default:   legs, torso, left_arm, right_arm, head, weapon
+    # requested: left_arm, torso, right_arm
+    # result:    legs, left_arm, torso, right_arm, head, weapon
+    #
+    # This lets an author express the exact crossing relation they care about
+    # without having to repeat all seven semantic layers in every frame.
+    result = list(DEFAULT_LAYER_ORDER)
+    slots = sorted(
+        DEFAULT_LAYER_ORDER.index(name)
+        for name in requested
     )
+    for slot, name in zip(slots, requested):
+        result[slot] = name
+    return tuple(result)
 
 
 def validate_layer_order(order: Iterable[str] | None) -> list[str]:
