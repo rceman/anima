@@ -335,6 +335,18 @@ def render_debug_frame(
                 f"GRF {float(grf['magnitude_n']):.0f}N mu {float(grf['required_friction_ratio']):.2f}",
                 fill=DEBUG["force"],
             )
+            angular = system_diag.get("angular_momentum")
+            if angular:
+                draw.text(
+                    (3, 43),
+                    (
+                        "H "
+                        f"{float(angular.get('total_angular_momentum_kg_m2_s', 0.0)):.2f} "
+                        "Hd "
+                        f"{float(angular.get('angular_momentum_rate_nm', 0.0)):.1f}"
+                    ),
+                    fill=DEBUG["system"],
+                )
 
     # Root/pelvis anchor: diamond. This makes root drift immediately visible.
     rx, ry = _xy(frame.root)
@@ -569,6 +581,21 @@ def render_inspection_frame(
             outline=DEBUG["system"],
         )
 
+        cop_x = system_diag.get("center_of_pressure_x_px")
+        if cop_x is not None:
+            cop_xi = round(float(cop_x))
+            cop_y = round(clip.ground_y)
+            draw.line(
+                [(cop_xi, cop_y - 5), (cop_xi, cop_y + 2)],
+                fill=DEBUG["cop"],
+                width=1,
+            )
+            draw.text(
+                (cop_xi + 3, cop_y - 10),
+                "COP",
+                fill=DEBUG["cop"],
+            )
+
     # Sidebar separator.
     sidebar_x = clip.width
     draw.line([(sidebar_x, 0), (sidebar_x, clip.height - 1)], fill=DEBUG["support"], width=1)
@@ -631,6 +658,12 @@ def render_inspection_frame(
             lines.append(
                 f"balance {float(balance_margin):.1f}px"
             )
+        angular = system_diag.get("angular_momentum")
+        if angular:
+            lines.extend([
+                f"H {float(angular.get('total_angular_momentum_kg_m2_s', 0.0)):.2f}",
+                f"Hdot {float(angular.get('angular_momentum_rate_nm', 0.0)):.1f} Nm",
+            ])
 
     y = 3
     for line in lines:
