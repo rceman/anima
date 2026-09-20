@@ -676,6 +676,13 @@ def render_inspection_frame(
                 f"H {float(angular.get('total_angular_momentum_kg_m2_s', 0.0)):.2f}",
                 f"Hdot {float(angular.get('angular_momentum_rate_nm', 0.0)):.1f} Nm",
             ])
+        load_share = system_diag.get("contact_load_share")
+        if load_share:
+            compact_loads = " ".join(
+                f"{name[-1].upper()}:{float(value) * 100:.0f}%"
+                for name, value in sorted(load_share.items())
+            )
+            lines.append(f"load {compact_loads}")
 
     y = 3
     for line in lines:
