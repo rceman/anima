@@ -75,3 +75,88 @@ def test_system_com_outside_support_is_reported():
     codes = {warning["code"] for warning in report["warnings"]}
 
     assert "system_com_outside_support" in codes
+
+
+def test_dynamic_center_of_pressure_moves_against_horizontal_acceleration():
+    clip = MotionClip(
+        width=128,
+        height=128,
+        ground_y=108,
+        fps=10,
+        rig="test",
+        frames=[
+            SimpleNamespace(frame=0, label=None, kinematic_stop=False),
+            SimpleNamespace(frame=1, label=None, kinematic_stop=False),
+            SimpleNamespace(frame=2, label=None, kinematic_stop=False),
+        ],
+    )
+    body = {
+        "profile": {
+            "mass_kg": 80.0,
+            "pixels_per_meter": 40.0,
+            "gravity_m_s2": 9.81,
+            "friction_coefficient": 10.0,
+        },
+        "frames": [
+            {"com_px": [60.0, 68.0], "support": {"min_x": 30.0, "max_x": 95.0}},
+            {"com_px": [62.0, 68.0], "support": {"min_x": 30.0, "max_x": 95.0}},
+            {"com_px": [68.0, 68.0], "support": {"min_x": 30.0, "max_x": 95.0}},
+        ],
+    }
+    weapon = {
+        "profile": {"mass_kg": 0.0},
+        "frames": [
+            {"weapon_com_px": [60.0, 68.0]},
+            {"weapon_com_px": [62.0, 68.0]},
+            {"weapon_com_px": [68.0, 68.0]},
+        ],
+    }
+
+    report = analyze_system_dynamics(clip, body, weapon)
+    middle = report["frames"][1]
+
+    assert middle["system_com_acceleration_m_s2"][0] > 0
+    assert middle["center_of_pressure_x_px"] < middle["system_com_px"][0]
+    assert middle["dynamic_balance_margin_px"] is not None
+
+
+def test_dynamic_balance_outside_support_is_reported():
+    clip = MotionClip(
+        width=128,
+        height=128,
+        ground_y=108,
+        fps=10,
+        rig="test",
+        frames=[
+            SimpleNamespace(frame=0, label=None, kinematic_stop=False),
+            SimpleNamespace(frame=1, label=None, kinematic_stop=False),
+            SimpleNamespace(frame=2, label=None, kinematic_stop=False),
+        ],
+    )
+    body = {
+        "profile": {
+            "mass_kg": 80.0,
+            "pixels_per_meter": 40.0,
+            "gravity_m_s2": 9.81,
+            "friction_coefficient": 10.0,
+            "dynamic_balance_tolerance_px": 0.0,
+        },
+        "frames": [
+            {"com_px": [50.0, 60.0], "support": {"min_x": 45.0, "max_x": 55.0}},
+            {"com_px": [55.0, 60.0], "support": {"min_x": 45.0, "max_x": 55.0}},
+            {"com_px": [75.0, 60.0], "support": {"min_x": 45.0, "max_x": 55.0}},
+        ],
+    }
+    weapon = {
+        "profile": {"mass_kg": 0.0},
+        "frames": [
+            {"weapon_com_px": [50.0, 60.0]},
+            {"weapon_com_px": [55.0, 60.0]},
+            {"weapon_com_px": [75.0, 60.0]},
+        ],
+    }
+
+    report = analyze_system_dynamics(clip, body, weapon)
+    codes = {warning["code"] for warning in report["warnings"]}
+
+    assert "dynamic_balance_outside_support" in codes
