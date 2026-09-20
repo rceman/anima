@@ -78,11 +78,18 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     assert (tmp_path / "transforms.json").exists()
     assert (tmp_path / "reference_map.json").exists()
     assert (tmp_path / "piece_manifest.json").exists()
+    assert (tmp_path / "piecegen_prompt.txt").exists()
     assert (tmp_path / "bind_pieces" / "weapon.png").exists()
     assert (tmp_path / "cutout_frames" / "frame_00.png").exists()
 
     prompt = (tmp_path / "imagegen_prompt.txt").read_text(encoding="utf-8")
     assert "two-handed grip" in prompt
+
+    piece_prompt = (tmp_path / "piecegen_prompt.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "full-canvas transparent PNG" in piece_prompt
+    assert "upper_arm_l" in piece_prompt
 
 
 def test_compile_can_time_resample_reference_motion(tmp_path: Path):
