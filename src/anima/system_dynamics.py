@@ -110,6 +110,8 @@ def analyze_system_dynamics(
         friction_ratio = None
         center_of_pressure_x = None
         dynamic_balance_margin = None
+        contact_load_share = None
+        contact_vertical_force_n = None
         if support:
             grf_x = net_force.x
             grf_up = total_mass * (gravity - acceleration[index].y)
@@ -185,6 +187,45 @@ def analyze_system_dynamics(
                             }
                         )
 
+            contact_names = list(
+                (support.get("contacts") or {}).keys()
+            )
+            if normal > 1e-6 and contact_names:
+                if len(contact_names) == 1:
+                    contact_load_share = {
+                        contact_names[0]: 1.0,
+                    }
+                elif len(contact_names) >= 2:
+                    ordered_contacts = sorted(
+                        contact_names,
+                        key=lambda name: frame.joints[name].x,
+                    )
+                    left_name = ordered_contacts[0]
+                    right_name = ordered_contacts[-1]
+                    left_x = frame.joints[left_name].x
+                    right_x = frame.joints[right_name].x
+                    span = max(right_x - left_x, 1e-9)
+                    load_x = (
+                        center_of_pressure_x
+                        if center_of_pressure_x is not None
+                        else system_com_px[index].x
+                    )
+                    right_raw = (load_x - left_x) / span
+                    right_fraction = min(
+                        1.0,
+                        max(0.0, right_raw),
+                    )
+                    contact_load_share = {
+                        left_name: 1.0 - right_fraction,
+                        right_name: right_fraction,
+                    }
+
+                if contact_load_share:
+                    contact_vertical_force_n = {
+                        name: normal * fraction
+                        for name, fraction in contact_load_share.items()
+                    }
+
             if normal > 1e-6 and friction_ratio > mu:
                 warnings.append(
                     {
@@ -222,6 +263,8 @@ def analyze_system_dynamics(
                     if index < len(angular_frames)
                     else None
                 ),
+                "contact_load_share": contact_load_share,
+                "contact_vertical_force_n": contact_vertical_force_n,
                 "ground_reaction_force": ground_reaction,
             }
         )
