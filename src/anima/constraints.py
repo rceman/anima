@@ -203,6 +203,7 @@ def _fit_shoulder_girdle_to_grips(
     reach_margin_px: float = 0.5,
     max_extension_ratio: float = 0.965,
     min_extension_ratio: float = 0.15,
+    max_rotation_deg: float = 10.0,
     iterations: int = 6,
 ) -> dict[str, Vec2]:
     """Translate the shoulder girdle slightly so both sword grips are reachable.
@@ -230,6 +231,95 @@ def _fit_shoulder_girdle_to_grips(
         return joints
 
     out = dict(joints)
+
+    def reach_bounds(
+        upper_name: str,
+        lower_name: str,
+    ) -> tuple[float, float]:
+        total_reach = (
+            rest.bone_lengths[upper_name]
+            + rest.bone_lengths[lower_name]
+        )
+        maximum = min(
+            total_reach - reach_margin_px,
+            total_reach * max_extension_ratio,
+        )
+        minimum = max(
+            abs(
+                rest.bone_lengths[upper_name]
+                - rest.bone_lengths[lower_name]
+            )
+            + reach_margin_px,
+            total_reach * min_extension_ratio,
+        )
+        return minimum, maximum
+
+    def reach_violation(candidate: dict[str, Vec2]) -> float:
+        score = 0.0
+        for shoulder_name, upper_name, lower_name, target in arm_specs:
+            distance = candidate[shoulder_name].distance_to(target)
+            minimum, maximum = reach_bounds(
+                upper_name,
+                lower_name,
+            )
+            if distance > maximum:
+                score += (distance - maximum) ** 2
+            elif distance < minimum:
+                score += (minimum - distance) ** 2
+        return score
+
+    # The clavicles/scapulae let the shoulder line rotate slightly relative
+    # to the rib cage. Search a small deterministic angular window before
+    # translation so an asymmetric two-handed reach does not force either arm
+    # into a mathematical lock merely to keep the authored shoulder line fixed.
+    max_rotation = max(0.0, float(max_rotation_deg))
+    if max_rotation > 1e-9:
+        left = out["shoulder_l"]
+        right = out["shoulder_r"]
+        center = Vec2(
+            (left.x + right.x) * 0.5,
+            (left.y + right.y) * 0.5,
+        )
+        base_l = left - center
+        base_r = right - center
+        base_score = reach_violation(out)
+        best_score = base_score
+        best_angle = 0.0
+        best_pair = (left, right)
+
+        steps = 24
+        for step_index in range(steps + 1):
+            angle_deg = (
+                -max_rotation
+                + (2.0 * max_rotation * step_index / steps)
+            )
+            radians = math.radians(angle_deg)
+            cosine = math.cos(radians)
+            sine = math.sin(radians)
+
+            def rotate(vector: Vec2) -> Vec2:
+                return Vec2(
+                    vector.x * cosine - vector.y * sine,
+                    vector.x * sine + vector.y * cosine,
+                )
+
+            candidate = dict(out)
+            candidate_l = center + rotate(base_l)
+            candidate_r = center + rotate(base_r)
+            candidate["shoulder_l"] = candidate_l
+            candidate["shoulder_r"] = candidate_r
+
+            # Very small regularization keeps the authored line when multiple
+            # angles solve reach equally well.
+            score = reach_violation(candidate) + 1e-4 * angle_deg * angle_deg
+            if score + 1e-9 < best_score:
+                best_score = score
+                best_angle = angle_deg
+                best_pair = (candidate_l, candidate_r)
+
+        if abs(best_angle) > 1e-9:
+            out["shoulder_l"], out["shoulder_r"] = best_pair
+
     total_shift = Vec2(0.0, 0.0)
 
     for _ in range(max(1, iterations)):
@@ -243,21 +333,9 @@ def _fit_shoulder_girdle_to_grips(
             if distance <= 1e-9:
                 continue
 
-            total_reach = (
-                rest.bone_lengths[upper_name]
-                + rest.bone_lengths[lower_name]
-            )
-            max_reach = min(
-                total_reach - reach_margin_px,
-                total_reach * max_extension_ratio,
-            )
-            min_reach = max(
-                abs(
-                    rest.bone_lengths[upper_name]
-                    - rest.bone_lengths[lower_name]
-                )
-                + reach_margin_px,
-                total_reach * min_extension_ratio,
+            min_reach, max_reach = reach_bounds(
+                upper_name,
+                lower_name,
             )
             direction = delta.normalized()
 
@@ -347,6 +425,12 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
             ),
             min_extension_ratio=float(
                 body_cfg.get("arm_min_extension_ratio", 0.15)
+            ),
+            max_rotation_deg=float(
+                body_cfg.get(
+                    "shoulder_girdle_max_rotation_deg",
+                    10.0,
+                )
             ),
         )
 
