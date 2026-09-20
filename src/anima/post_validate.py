@@ -26,6 +26,9 @@ class RenderValidationProfile:
     min_control_mask_coverage: float = 0.70
     min_rendered_near_control: float = 0.55
     max_background_drift: float = 12.0
+    structural_anchor_radius_px: int = 6
+    sword_line_radius_px: int = 3
+    min_sword_line_coverage: float = 0.72
 
 
 def _color_distance(a: tuple[int, int, int], b: tuple[int, int, int]) -> float:
@@ -212,6 +215,36 @@ def _patch_has_foreground(
     return False
 
 
+
+
+def _segment_foreground_coverage(
+    image: Image.Image,
+    start: Vec2,
+    end: Vec2,
+    samples: int,
+    radius: int,
+    background: tuple[int, int, int],
+    threshold: float,
+) -> float:
+    samples = max(2, samples)
+    hits = 0
+    for index in range(samples):
+        t = index / (samples - 1)
+        point = Vec2(
+            start.x + (end.x - start.x) * t,
+            start.y + (end.y - start.y) * t,
+        )
+        if _patch_has_foreground(
+            image,
+            point,
+            radius,
+            background,
+            threshold,
+        ):
+            hits += 1
+    return hits / samples
+
+
 def _ground_contact_exists(
     image: Image.Image,
     foot: Vec2,
@@ -350,6 +383,10 @@ def _frame_report(
 
     important = {
         "head": frame.joints.get("head"),
+        "elbow_l": frame.joints.get("elbow_l"),
+        "elbow_r": frame.joints.get("elbow_r"),
+        "knee_l": frame.joints.get("knee_l"),
+        "knee_r": frame.joints.get("knee_r"),
         "primary_hand": frame.joints.get(clip.primary_hand),
         "secondary_hand": frame.joints.get(clip.secondary_hand),
         "sword_tip": frame.weapon.tip,
@@ -357,11 +394,12 @@ def _frame_report(
     for name, point in important.items():
         if point is None:
             continue
-        radius = (
-            profile.sword_tip_radius_px
-            if name == "sword_tip"
-            else profile.anchor_radius_px
-        )
+        if name == "sword_tip":
+            radius = profile.sword_tip_radius_px
+        elif name.startswith(("elbow_", "knee_")):
+            radius = profile.structural_anchor_radius_px
+        else:
+            radius = profile.anchor_radius_px
         found = _patch_has_foreground(
             image.convert("RGB"),
             point,
@@ -379,6 +417,35 @@ def _frame_report(
                     "message": f"No foreground detected near expected {name}.",
                 }
             )
+
+    sword_line_coverage = _segment_foreground_coverage(
+        image.convert("RGB"),
+        frame.weapon.grip_main,
+        frame.weapon.tip,
+        samples=max(
+            8,
+            round(
+                frame.weapon.grip_main.distance_to(
+                    frame.weapon.tip
+                )
+                / 3.0
+            ),
+        ),
+        radius=profile.sword_line_radius_px,
+        background=background_rgb,
+        threshold=profile.background_distance_threshold,
+    )
+    if sword_line_coverage < profile.min_sword_line_coverage:
+        issues.append(
+            {
+                "code": "sword_path_missing",
+                "message": (
+                    f"Only {sword_line_coverage:.2f} of the expected sword "
+                    f"blade path has nearby rendered foreground; required "
+                    f"{profile.min_sword_line_coverage:.2f}."
+                ),
+            }
+        )
 
     contacts: dict[str, bool] = {}
     for foot_name in ("foot_l", "foot_r"):
@@ -416,6 +483,7 @@ def _frame_report(
         "bbox": bbox_metrics,
         "pose_mask": pose_mask,
         "anchors": anchor_checks,
+        "sword_line_coverage": sword_line_coverage,
         "contacts": contacts,
         "issues": issues,
     }
