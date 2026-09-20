@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 import math
+from pathlib import Path
+from typing import Any
 
 from .model import FramePose, MotionClip, Vec2, WeaponPose
 from .rig import RestGeometry
@@ -67,6 +70,66 @@ class PoseRecipe:
     label: str | None = None
     time_s: float | None = None
     kinematic_stop: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "PoseRecipe":
+        def optional_vec(name: str) -> Vec2 | None:
+            value = data.get(name)
+            return Vec2.from_any(value) if value is not None else None
+
+        return cls(
+            frame=int(data["frame"]),
+            root=Vec2.from_any(data["root"]),
+            main_grip=Vec2.from_any(data["main_grip"]),
+            sword_angle_deg=float(data["sword_angle_deg"]),
+            foot_l=Vec2.from_any(data["foot_l"]),
+            foot_r=Vec2.from_any(data["foot_r"]),
+            torso_lean_deg=float(data.get("torso_lean_deg", 0.0)),
+            shoulder_line_deg=float(data.get("shoulder_line_deg", 0.0)),
+            hip_line_deg=float(data.get("hip_line_deg", 0.0)),
+            elbow_pole_l=optional_vec("elbow_pole_l"),
+            elbow_pole_r=optional_vec("elbow_pole_r"),
+            knee_pole_l=optional_vec("knee_pole_l"),
+            knee_pole_r=optional_vec("knee_pole_r"),
+            contacts=dict(data.get("contacts", {})),
+            label=data.get("label"),
+            time_s=(
+                float(data["time_s"])
+                if data.get("time_s") is not None
+                else None
+            ),
+            kinematic_stop=bool(data.get("kinematic_stop", False)),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "frame": self.frame,
+            "root": self.root.as_list(),
+            "main_grip": self.main_grip.as_list(),
+            "sword_angle_deg": self.sword_angle_deg,
+            "foot_l": self.foot_l.as_list(),
+            "foot_r": self.foot_r.as_list(),
+            "torso_lean_deg": self.torso_lean_deg,
+            "shoulder_line_deg": self.shoulder_line_deg,
+            "hip_line_deg": self.hip_line_deg,
+            "contacts": dict(self.contacts),
+        }
+        for name in (
+            "elbow_pole_l",
+            "elbow_pole_r",
+            "knee_pole_l",
+            "knee_pole_r",
+        ):
+            value = getattr(self, name)
+            if value is not None:
+                out[name] = value.as_list()
+        if self.label is not None:
+            out["label"] = self.label
+        if self.time_s is not None:
+            out["time_s"] = self.time_s
+        if self.kinematic_stop:
+            out["kinematic_stop"] = True
+        return out
 
 
 class ParametricAuthor:
@@ -222,3 +285,68 @@ class ParametricAuthor:
             metadata=dict(metadata or {}),
             dynamics=dict(dynamics or {}),
         )
+
+
+
+def build_clip_from_recipe_data(
+    rest_clip: MotionClip,
+    data: dict[str, Any],
+) -> MotionClip:
+    """Build a full motion clip from compact semantic pose recipes."""
+    if not rest_clip.frames:
+        raise ValueError("Rest motion has no frames")
+
+    version = int(data.get("version", 1))
+    if version != 1:
+        raise ValueError(f"Unsupported authoring recipe version: {version}")
+
+    author = ParametricAuthor(
+        rest_clip.frames[0],
+        primary_hand=str(
+            data.get("grip", {}).get(
+                "primary_hand",
+                rest_clip.primary_hand,
+            )
+        ),
+        secondary_hand=str(
+            data.get("grip", {}).get(
+                "secondary_hand",
+                rest_clip.secondary_hand,
+            )
+        ),
+    )
+    recipes = [
+        PoseRecipe.from_dict(item)
+        for item in data.get("poses", [])
+    ]
+    if not recipes:
+        raise ValueError("Authoring recipe contains no poses")
+
+    canvas = data.get("canvas", {})
+    timing = data.get("timing", {})
+
+    return author.clip(
+        recipes,
+        width=int(canvas.get("width", rest_clip.width)),
+        height=int(canvas.get("height", rest_clip.height)),
+        ground_y=float(canvas.get("ground_y", rest_clip.ground_y)),
+        fps=float(timing.get("fps", rest_clip.fps)),
+        rig=str(data.get("rig", rest_clip.rig)),
+        metadata={
+            **rest_clip.metadata,
+            **dict(data.get("metadata", {})),
+        },
+        dynamics={
+            **rest_clip.dynamics,
+            **dict(data.get("dynamics", {})),
+        },
+    )
+
+
+def build_clip_from_recipe_files(
+    rest_motion_path: str | Path,
+    recipe_path: str | Path,
+) -> MotionClip:
+    rest_clip = MotionClip.load(rest_motion_path)
+    data = json.loads(Path(recipe_path).read_text(encoding="utf-8"))
+    return build_clip_from_recipe_data(rest_clip, data)
