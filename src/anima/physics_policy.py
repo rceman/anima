@@ -22,6 +22,7 @@ SOFT_CODES = {
     "com_acceleration_high",
     "com_jerk_high",
     "system_com_outside_support",
+    "dynamic_balance_outside_support",
 }
 
 
