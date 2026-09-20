@@ -1,4 +1,8 @@
-from anima.authoring import ParametricAuthor, PoseRecipe
+from anima.authoring import (
+    ParametricAuthor,
+    PoseRecipe,
+    build_clip_from_recipe_files,
+)
 from anima.constraints import normalize_clip, validate_clip
 from anima.model import FramePose, Vec2, WeaponPose
 
@@ -112,3 +116,38 @@ def test_parametric_clip_normalizes_to_valid_fixed_geometry():
     assert normalized.frames[1].joints["hand_l"].distance_to(
         normalized.frames[1].weapon.grip_off
     ) < 0.75
+
+
+def test_canonical_parametric_recipe_builds_valid_motion():
+    authored = build_clip_from_recipe_files(
+        "examples/twohand_sword_slash/motion.json",
+        "examples/twohand_sword_slash/recipe.json",
+    )
+    normalized = normalize_clip(authored)
+    report = validate_clip(normalized)
+
+    assert report.ok, report.issues
+    assert len(normalized.frames) == 8
+    assert normalized.frames[0].label == "ready"
+    assert normalized.frames[4].label == "impact"
+    assert normalized.frames[-1].kinematic_stop is True
+
+    # Recipe authority is intentionally compact: root, feet and weapon path
+    # must survive authoring even though elbows/knees are solved later.
+    source = __import__(
+        "anima.model",
+        fromlist=["MotionClip"],
+    ).MotionClip.load(
+        "examples/twohand_sword_slash/motion.json"
+    )
+    for original, rebuilt in zip(source.frames, authored.frames):
+        assert rebuilt.root.distance_to(original.root) < 1e-6
+        assert rebuilt.joints["foot_l"].distance_to(
+            original.joints["foot_l"]
+        ) < 1e-6
+        assert rebuilt.joints["foot_r"].distance_to(
+            original.joints["foot_r"]
+        ) < 1e-6
+        assert rebuilt.weapon.grip_main.distance_to(
+            original.weapon.grip_main
+        ) < 1e-6
