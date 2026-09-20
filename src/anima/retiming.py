@@ -26,19 +26,69 @@ def _weapon_scale(weapon: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
         omega = math.radians(float(item.get("angular_velocity_deg_s", 0.0)))
         alpha = math.radians(float(item.get("angular_acceleration_deg_s2", 0.0)))
 
+        inertial = float(
+            item.get(
+                "inertial_torque_nm",
+                inertia * alpha,
+            )
+        )
+        damping_torque = float(
+            item.get(
+                "damping_torque_nm",
+                damping * omega,
+            )
+        )
+        gravity_torque = float(
+            item.get("gravity_torque_nm", 0.0)
+        )
+
         def demand(scale: float) -> float:
+            # Inertial load scales with 1/s^2 and viscous damping with 1/s.
+            # Gravity does not get easier merely because the animation is
+            # slowed down.
             return abs(
-                inertia * alpha / (scale * scale)
-                + damping * omega / scale
+                inertial / (scale * scale)
+                - gravity_torque
+                + damping_torque / scale
             )
 
         if demand(1.0) <= max_torque:
             continue
 
+        # Search for the first slower timing that actually satisfies the
+        # torque budget. A fixed gravity term means demand is not guaranteed to
+        # be perfectly monotonic, so a small multiplicative scan is safer than
+        # assuming a simple 1/s^2 relationship.
         low = 1.0
-        high = 2.0
-        while demand(high) > max_torque and high < 128.0:
-            high *= 2.0
+        high = 1.0
+        found = False
+        while high < 128.0:
+            candidate = min(128.0, high * 1.10)
+            if demand(candidate) <= max_torque:
+                low = high
+                high = candidate
+                found = True
+                break
+            high = candidate
+
+        if not found:
+            reasons.append(
+                {
+                    "domain": "weapon",
+                    "frame": item.get("frame"),
+                    "code": "torque_not_retimeable",
+                    "time_scale": 1.0,
+                    "retime_possible": False,
+                    "message": (
+                        f"Weapon torque remains above the configured "
+                        f"{max_torque:.1f} Nm limit even when motion-dependent "
+                        "loads are heavily slowed; change pose, weapon, or "
+                        "strength/torque budget instead of retiming."
+                    ),
+                }
+            )
+            continue
+
         for _ in range(50):
             mid = (low + high) * 0.5
             if demand(mid) > max_torque:
@@ -53,6 +103,7 @@ def _weapon_scale(weapon: dict[str, Any]) -> tuple[float, list[dict[str, Any]]]:
                 "frame": item.get("frame"),
                 "code": "torque_retime",
                 "time_scale": high,
+                "retime_possible": True,
                 "message": (
                     f"Weapon torque needs about {high:.2f}x more time at the "
                     f"configured {max_torque:.1f} Nm drive-torque limit."
