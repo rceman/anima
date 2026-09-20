@@ -6,7 +6,7 @@ from pathlib import Path
 from .analysis import analyze_motion
 from .constraints import normalize_clip, validate_clip
 from .cutout import export_cutout_set
-from .handoff import imagegen_prompt
+from .handoff import imagegen_prompt, piecegen_prompt
 from .manifest import build_animation_manifest
 from .model import MotionClip
 from .render import export_render_set
@@ -140,6 +140,10 @@ def compile_motion(
 
     (output / "imagegen_prompt.txt").write_text(
         imagegen_prompt(normalized),
+        encoding="utf-8",
+    )
+    (output / "piecegen_prompt.txt").write_text(
+        piecegen_prompt(normalized),
         encoding="utf-8",
     )
     return report.ok and (physics_report["ok"] or not strict_physics)
