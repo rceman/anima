@@ -26,6 +26,9 @@ def analyze_system_dynamics(
     ppm = max(float(body_profile.get("pixels_per_meter", 40.0)), 1e-9)
     gravity = float(body_profile.get("gravity_m_s2", 9.81))
     mu = float(body_profile.get("friction_coefficient", 0.8))
+    balance_tolerance_px = float(
+        body_profile.get("dynamic_balance_tolerance_px", 1.0)
+    )
 
     body_frames = body_report.get("frames", [])
     weapon_frames = weapon_report.get("frames", [])
@@ -94,6 +97,8 @@ def analyze_system_dynamics(
         net_force = acceleration[index] * total_mass
         ground_reaction = None
         friction_ratio = None
+        center_of_pressure_x = None
+        dynamic_balance_margin = None
         if support:
             grf_x = net_force.x
             grf_up = total_mass * (gravity - acceleration[index].y)
@@ -105,6 +110,40 @@ def analyze_system_dynamics(
                 "magnitude_n": math.hypot(grf_x, grf_up),
                 "required_friction_ratio": friction_ratio,
             }
+
+            # Linear inverted-pendulum/ZMP approximation. Unlike static COM
+            # projection, this accounts for horizontal acceleration: a fast
+            # sword swing can demand the effective center of pressure to move
+            # toward an edge of the support region even while COM stays inside.
+            if normal > 1e-6 and gravity > 1e-9:
+                com_height_px = max(
+                    0.0,
+                    clip.ground_y - system_com_px[index].y,
+                )
+                center_of_pressure_x = (
+                    system_com_px[index].x
+                    - com_height_px * acceleration[index].x / gravity
+                )
+                support_min = float(support["min_x"])
+                support_max = float(support["max_x"])
+                dynamic_balance_margin = min(
+                    center_of_pressure_x - support_min,
+                    support_max - center_of_pressure_x,
+                )
+                if dynamic_balance_margin < -balance_tolerance_px:
+                    warnings.append(
+                        {
+                            "code": "dynamic_balance_outside_support",
+                            "frame": frame.frame,
+                            "message": (
+                                f"Estimated center of pressure "
+                                f"x={center_of_pressure_x:.2f}px lies outside "
+                                f"support [{support_min:.2f}, {support_max:.2f}]px "
+                                f"by {-dynamic_balance_margin:.2f}px."
+                            ),
+                        }
+                    )
+
             if normal > 1e-6 and friction_ratio > mu:
                 warnings.append(
                     {
@@ -135,6 +174,8 @@ def analyze_system_dynamics(
                 "estimated_net_force_vector_n": net_force.as_list(),
                 "support": support,
                 "stability_margin_px": stability_margin,
+                "center_of_pressure_x_px": center_of_pressure_x,
+                "dynamic_balance_margin_px": dynamic_balance_margin,
                 "ground_reaction_force": ground_reaction,
             }
         )
@@ -147,6 +188,7 @@ def analyze_system_dynamics(
             "pixels_per_meter": ppm,
             "gravity_m_s2": gravity,
             "friction_coefficient": mu,
+            "dynamic_balance_tolerance_px": balance_tolerance_px,
         },
         "frames": frames,
         "warnings": warnings,
