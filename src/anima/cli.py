@@ -11,6 +11,7 @@ from .constraints import normalize_clip, validate_clip
 from .model import MotionClip
 from .post_validate import validate_rendered_sheet
 from .retime_apply import auto_retime
+from .resample import resample_clip
 from .timeline import densify_clip
 
 
@@ -45,6 +46,7 @@ def _cmd_compile(args: argparse.Namespace) -> int:
         scale=args.scale,
         strict_physics=args.strict_physics,
         auto_retime_iterations=args.auto_retime,
+        sample_fps=args.sample_fps,
     )
     print(f"compiled: {args.output}")
     print(f"validation: {'PASS' if ok else 'FAIL'}")
@@ -74,6 +76,18 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
     print(json.dumps(report, indent=2))
     return 0 if report["physics_validation"]["ok"] else 2
 
+
+
+def _cmd_resample(args: argparse.Namespace) -> int:
+    clip = MotionClip.load(args.input)
+    sampled = resample_clip(clip, args.fps)
+    if args.normalize:
+        sampled = normalize_clip(sampled)
+    sampled.save(args.output)
+    print(f"resampled: {args.output}")
+    print(f"frames: {len(sampled.frames)}")
+    print(f"duration_s: {sampled.times_s()[-1] - sampled.times_s()[0]:.3f}")
+    return 0
 
 
 def _cmd_retime(args: argparse.Namespace) -> int:
@@ -181,6 +195,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Fail compilation on hard physics plausibility issues",
     )
     compile_cmd.add_argument(
+        "--sample-fps",
+        type=float,
+        default=None,
+        metavar="FPS",
+        help="Time-resample authored motion to this pose rate before solving/rendering",
+    )
+    compile_cmd.add_argument(
         "--auto-retime",
         type=int,
         default=0,
@@ -201,6 +222,16 @@ def build_parser() -> argparse.ArgumentParser:
     analyze_cmd.add_argument("input", type=Path)
     analyze_cmd.add_argument("--normalize", action="store_true")
     analyze_cmd.set_defaults(func=_cmd_analyze)
+
+    resample_cmd = sub.add_parser(
+        "resample",
+        help="Sample authored motion on a real-time Hermite pose grid",
+    )
+    resample_cmd.add_argument("input", type=Path)
+    resample_cmd.add_argument("--fps", type=float, required=True)
+    resample_cmd.add_argument("--output", "-o", type=Path, required=True)
+    resample_cmd.add_argument("--normalize", action="store_true")
+    resample_cmd.set_defaults(func=_cmd_resample)
 
     retime_cmd = sub.add_parser(
         "retime",
