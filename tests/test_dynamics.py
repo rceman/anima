@@ -1,3 +1,5 @@
+import pytest
+
 from anima.dynamics import analyze_weapon_dynamics
 from anima.model import FramePose, MotionClip, Vec2, WeaponPose
 
@@ -130,3 +132,57 @@ def test_weapon_report_tracks_tip_speed():
         frame["tip_speed_m_s"]
         for frame in report["frames"]
     ) >= 0.0
+
+
+def test_static_horizontal_sword_requires_gravity_counter_torque():
+    mass = 2.0
+    length = 1.0
+    com_fraction = 0.5
+    frames = [
+        FramePose(
+            frame=index,
+            root=Vec2(64, 80),
+            joints={
+                "hand_r": Vec2(64, 64),
+                "hand_l": Vec2(60, 64),
+            },
+            weapon=WeaponPose(
+                grip_main=Vec2(64, 64),
+                grip_off=Vec2(60, 64),
+                tip=Vec2(100, 64),
+            ),
+            time_s=index * 0.1,
+            kinematic_stop=True,
+        )
+        for index in range(2)
+    ]
+    clip = MotionClip(
+        width=128,
+        height=128,
+        ground_y=108,
+        fps=10,
+        rig="test",
+        frames=frames,
+        dynamics={
+            "weapon": {
+                "mass_kg": mass,
+                "effective_length_m": length,
+                "center_of_mass_fraction": com_fraction,
+                "inertia_factor": 0.33,
+                "damping_nm_per_rad_s": 0.0,
+            },
+            "body": {
+                "gravity_m_s2": 9.81,
+                "pixels_per_meter": 40.0,
+            },
+        },
+    )
+
+    report = analyze_weapon_dynamics(clip)
+    frame0 = report["frames"][0]
+    expected = mass * 9.81 * length * com_fraction
+
+    assert frame0["angular_velocity_deg_s"] == 0.0
+    assert frame0["inertial_torque_nm"] == 0.0
+    assert frame0["gravity_torque_nm"] == pytest.approx(-expected)
+    assert frame0["estimated_torque_nm"] == pytest.approx(expected)
