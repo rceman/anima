@@ -137,6 +137,8 @@ inspection_preview.gif     # preferred large diagnostic view with metrics sideba
 debug_preview.gif          # dense diagnostic overlay
 control_preview.gif
 parts_preview.gif
+cutout_preview.gif
+rig_review_preview.gif     # skeleton + mannequin + deterministic cutout
 review_preview.gif         # debug skeleton + mannequin side-by-side
 debug_sheet.preview.png
 control_sheet.preview.png
@@ -331,6 +333,61 @@ sparse keyframes
 
 That order prevents the exact failure modes that motivated the project: floating feet, weapon morphing, and mixed one/two-handed swings.
 
+## Two rendering paths
+
+Anima now supports both animation strategies we wanted to keep available.
+
+### 1. Draw once, animate pieces
+
+The first normalized pose is the bind pose. Anima exports:
+
+- `piece_manifest.json` — required piece names, pivots and bind geometry;
+- `bind_pieces/*.png` — one transparent full-canvas piece per bone/body part;
+- `bind_piece_sheet.png` — compact review sheet of the bind pieces;
+- `transforms.json` — per-frame affine transforms for every bone, torso, head and weapon;
+- `cutout_frames/`, `cutout_sheet.png`, `cutout_preview.gif` — deterministic transformed animation;
+- `rig_review_preview.gif` — debug skeleton + mannequin + cutout side by side.
+
+The default bind pieces are diagnostic masks. To use actual character art, paint
+the pieces once according to `piece_manifest.json`, then render them through the
+same motion:
+
+```bash
+anima cutout output/motion.normalized.json \
+  --pieces character-pieces/ \
+  --output /tmp/painted-cutout \
+  --normalize
+```
+
+Or use the painted pack during the normal compiler flow:
+
+```bash
+anima compile motion.json \
+  --pieces character-pieces/ \
+  --output /tmp/anima-painted
+```
+
+Each painted piece remains a full {128}x{128} transparent canvas in bind
+coordinates. Anima uses nearest-neighbor affine transforms; it never asks an
+image model to redraw that piece per frame. `piecegen_prompt.txt` contains the
+painting contract for producing a pack from a master character.
+
+This path gives maximum identity consistency and is especially useful for the
+debug/control animation or for a deliberately cutout-style final character.
+
+### 2. Redraw each final frame
+
+For animation that needs joint deformation, cloth compression, changing
+silhouette, foreshortening, or hand-drawn pixel cleanup, use the solved
+`control_sheet.png`, `parts_sheet.png`, semantic layers and cutout preview as
+geometry authority, then let the final renderer/ImageGen redraw each frame.
+
+Anima validates the returned sheet afterward and can generate a targeted repair
+prompt for only the frames that drift.
+
+The two paths share exactly the same motion/IK/physics source, so we can switch
+or hybridize without rebuilding the animation.
+
 ## Image-generation handoff
 
 Recommended inputs to an image generator:
@@ -391,6 +448,8 @@ Implemented:
 - enlarged color-coded debug GIF with onion skin, joint labels, motion trails, IK poles, contacts and physics overlays;
 - side-by-side debug/control review GIF;
 - semantic/layered body-part control sheet and GIF;
+- reusable bind-pose raster pieces plus deterministic per-bone affine transforms;
+- procedural or painted cutout-sheet/GIF rendering from one set of pieces;
 - weapon inertia / torque / translational force / energy / follow-through diagnostics;
 - body COM, momentum, acceleration, jerk, support, friction and GRF diagnostics;
 - combined person+weapon COM and ground-force diagnostics;
