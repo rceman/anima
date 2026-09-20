@@ -32,6 +32,7 @@ def build_diagnostics_summary(
 ) -> dict[str, Any]:
     dynamics = analysis["dynamics"]
     physics = analysis["physics_validation"]
+    occlusion = analysis.get("occlusion", {"warnings": []})
     timing = analysis["timing_recommendation"]
 
     weapon_frames = dynamics.get("weapon", {}).get("frames", [])
@@ -74,6 +75,15 @@ def build_diagnostics_summary(
             ),
             "warning_codes": sorted(
                 {item["code"] for item in physics["warnings"]}
+            ),
+        },
+        "occlusion": {
+            "warning_count": len(occlusion.get("warnings", [])),
+            "warning_codes": sorted(
+                {
+                    item["code"]
+                    for item in occlusion.get("warnings", [])
+                }
             ),
         },
         "timing": {
