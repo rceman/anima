@@ -63,3 +63,58 @@ def test_near_locked_arm_is_reported():
 
     assert "arm_near_full_extension" in codes
     assert "sword_tip_speed" in report["peaks"]
+
+
+def test_abrupt_elbow_branch_flip_is_reported():
+    first = frame(
+        0,
+        Vec2(55, 40),
+        Vec2(65, 40),
+    )
+    second = frame(
+        1,
+        Vec2(55, 40),
+        Vec2(65, 40),
+    )
+    first.joints["elbow_l"] = Vec2(50, 50)
+    second.joints["elbow_l"] = Vec2(50, 30)
+
+    clip = MotionClip(
+        128,
+        128,
+        100,
+        10,
+        "test",
+        [first, second],
+        dynamics={
+            "body": {
+                "pixels_per_meter": 40,
+                "coordination": {
+                    "branch_flip_min_offset_px": 1.0,
+                },
+            }
+        },
+    )
+    body = {
+        "profile": {"pixels_per_meter": 40},
+        "frames": [
+            {"root_velocity_m_s": [0, 0]},
+            {"root_velocity_m_s": [0, 0]},
+        ],
+    }
+    weapon = {
+        "frames": [
+            {"angular_velocity_deg_s": 0},
+            {"angular_velocity_deg_s": 0},
+        ]
+    }
+
+    report = analyze_coordination(clip, body, weapon)
+
+    flips = [
+        warning
+        for warning in report["warnings"]
+        if warning["code"] == "ik_branch_flip"
+    ]
+    assert flips
+    assert flips[0]["joint"] == "elbow_l"
