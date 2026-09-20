@@ -27,6 +27,7 @@ def _sample_times(
     start_s: float,
     end_s: float,
     fps: float,
+    required_times: list[float] | None = None,
 ) -> list[float]:
     if fps <= 0.0:
         raise ValueError("fps must be > 0")
@@ -47,6 +48,20 @@ def _sample_times(
         times.append(end_s)
     else:
         times[-1] = end_s
+
+    # Authored semantic keys are never discarded merely because they fall
+    # between the requested regular sample ticks. This keeps impact, contact
+    # transitions, explicit rest states, labels and z-order changes exact.
+    for authored_time in required_times or []:
+        if authored_time < start_s - 1e-9 or authored_time > end_s + 1e-9:
+            continue
+        if not any(
+            math.isclose(authored_time, item, abs_tol=1e-9)
+            for item in times
+        ):
+            times.append(authored_time)
+
+    times.sort()
     return times
 
 
@@ -265,6 +280,7 @@ def resample_clip(
         source_times[0],
         source_times[-1],
         fps,
+        required_times=source_times,
     )
     output = [
         _sample_pose(
@@ -276,8 +292,43 @@ def resample_clip(
         for index, time_s in enumerate(target_times)
     ]
 
+    dynamics = {
+        **clip.dynamics,
+        "weapon": dict(clip.dynamics.get("weapon", {})),
+    }
+    impact_frame = dynamics["weapon"].get("impact_frame")
+    if impact_frame is not None:
+        source_index = next(
+            (
+                index
+                for index, frame in enumerate(clip.frames)
+                if frame.frame == int(impact_frame)
+            ),
+            None,
+        )
+        if source_index is not None:
+            impact_time = source_times[source_index]
+            output_index = next(
+                index
+                for index, item in enumerate(target_times)
+                if math.isclose(item, impact_time, abs_tol=1e-9)
+            )
+            dynamics["weapon"]["impact_frame"] = output_index
+
+    metadata = {
+        **clip.metadata,
+        "resampling": {
+            "source_pose_count": len(clip.frames),
+            "output_pose_count": len(output),
+            "target_fps": fps,
+            "preserved_authored_key_times": True,
+        },
+    }
+
     return replace(
         clip,
         fps=fps,
         frames=output,
+        metadata=metadata,
+        dynamics=dynamics,
     )
