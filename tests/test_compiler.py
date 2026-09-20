@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from PIL import Image
@@ -65,3 +66,39 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
 
     prompt = (tmp_path / "imagegen_prompt.txt").read_text(encoding="utf-8")
     assert "two-handed grip" in prompt
+
+
+def test_compile_can_time_resample_reference_motion(tmp_path: Path):
+    source = Path("examples/twohand_sword_slash/motion.json")
+    ok = compile_motion(
+        source,
+        tmp_path,
+        scale=1,
+        sample_fps=16,
+        auto_retime_iterations=0,
+    )
+    assert ok, (tmp_path / "validation.json").read_text(encoding="utf-8")
+
+    manifest = json.loads(
+        (tmp_path / "animation_manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    normalized = json.loads(
+        (tmp_path / "motion.normalized.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert len(manifest["frames"]) > 8
+    assert normalized["metadata"]["resampling"]["target_fps"] == 16
+    impact_frames = [
+        frame
+        for frame in manifest["frames"]
+        if "impact" in frame["events"]
+    ]
+    assert len(impact_frames) == 1
+
+    rows = (len(manifest["frames"]) + 3) // 4
+    sheet = Image.open(tmp_path / "control_sheet.png")
+    assert sheet.size == (512, rows * 128)
