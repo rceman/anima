@@ -1,4 +1,9 @@
-from anima.constraints import normalize_clip, solve_two_bone, validate_clip
+from anima.constraints import (
+    _fit_shoulder_girdle_to_grips,
+    normalize_clip,
+    solve_two_bone,
+    validate_clip,
+)
 from anima.model import FramePose, MotionClip, Vec2, WeaponPose
 
 
@@ -157,3 +162,53 @@ def test_axial_body_proportions_are_restored():
         second.joints["hip_l"].distance_to(second.joints["hip_r"])
         - first.joints["hip_l"].distance_to(first.joints["hip_r"])
     ) < 1e-6
+
+
+def test_shoulder_girdle_moves_bounded_pair_toward_unreachable_grips():
+    clip = make_clip()
+    rest = __import__("anima.rig", fromlist=["RestGeometry"]).RestGeometry.from_frame(
+        clip.frames[0]
+    )
+    joints = dict(clip.frames[0].joints)
+
+    main_target = Vec2(joints["shoulder_r"].x + 25.0, joints["shoulder_r"].y)
+    off_target = Vec2(joints["shoulder_l"].x + 25.0, joints["shoulder_l"].y)
+
+    solved = _fit_shoulder_girdle_to_grips(
+        joints,
+        rest,
+        "hand_r",
+        "hand_l",
+        main_target,
+        off_target,
+        max_shift_px=4.0,
+        reach_margin_px=0.5,
+    )
+
+    original_width = joints["shoulder_l"].distance_to(joints["shoulder_r"])
+    solved_width = solved["shoulder_l"].distance_to(solved["shoulder_r"])
+
+    assert solved["shoulder_r"].x > joints["shoulder_r"].x
+    assert solved["shoulder_l"].x > joints["shoulder_l"].x
+    assert abs(solved_width - original_width) < 1e-9
+
+
+def test_shoulder_girdle_shift_is_bounded():
+    clip = make_clip()
+    rest = __import__("anima.rig", fromlist=["RestGeometry"]).RestGeometry.from_frame(
+        clip.frames[0]
+    )
+    joints = dict(clip.frames[0].joints)
+
+    solved = _fit_shoulder_girdle_to_grips(
+        joints,
+        rest,
+        "hand_r",
+        "hand_l",
+        Vec2(120, 20),
+        Vec2(110, 20),
+        max_shift_px=2.0,
+    )
+
+    shift = solved["shoulder_r"] - joints["shoulder_r"]
+    assert shift.length() <= 2.0 + 1e-9
