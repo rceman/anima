@@ -201,6 +201,8 @@ def _fit_shoulder_girdle_to_grips(
     off_target: Vec2,
     max_shift_px: float,
     reach_margin_px: float = 0.5,
+    max_extension_ratio: float = 0.965,
+    min_extension_ratio: float = 0.15,
     iterations: int = 6,
 ) -> dict[str, Vec2]:
     """Translate the shoulder girdle slightly so both sword grips are reachable.
@@ -241,17 +243,21 @@ def _fit_shoulder_girdle_to_grips(
             if distance <= 1e-9:
                 continue
 
-            max_reach = (
+            total_reach = (
                 rest.bone_lengths[upper_name]
                 + rest.bone_lengths[lower_name]
-                - reach_margin_px
             )
-            min_reach = (
+            max_reach = min(
+                total_reach - reach_margin_px,
+                total_reach * max_extension_ratio,
+            )
+            min_reach = max(
                 abs(
                     rest.bone_lengths[upper_name]
                     - rest.bone_lengths[lower_name]
                 )
-                + reach_margin_px
+                + reach_margin_px,
+                total_reach * min_extension_ratio,
             )
             direction = delta.normalized()
 
@@ -335,6 +341,12 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
             ),
             reach_margin_px=float(
                 body_cfg.get("arm_reach_margin_px", 0.5)
+            ),
+            max_extension_ratio=float(
+                body_cfg.get("arm_max_extension_ratio", 0.965)
+            ),
+            min_extension_ratio=float(
+                body_cfg.get("arm_min_extension_ratio", 0.15)
             ),
         )
 
