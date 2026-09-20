@@ -84,3 +84,16 @@ def test_explicit_timestamps_are_interpolated_and_preserved():
 
     assert [frame.time_s for frame in dense.frames] == pytest.approx([0.0, 0.2, 0.4, 0.6])
     assert dense.times_s() == pytest.approx([0.0, 0.2, 0.4, 0.6])
+
+
+def test_interpolation_uses_nearest_keyframe_semantic_layer_order():
+    a = pose(0, 10)
+    b = pose(3, 40)
+    a.layer_order = ["left_arm", "torso", "right_arm"]
+    b.layer_order = ["right_arm", "torso", "left_arm"]
+
+    clip = MotionClip(128, 128, 60, 12, "test", [a, b])
+    dense = densify_clip(clip, easing="linear")
+
+    assert dense.frames[1].layer_order == a.layer_order
+    assert dense.frames[2].layer_order == b.layer_order
