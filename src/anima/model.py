@@ -78,6 +78,7 @@ class FramePose:
     time_s: float | None = None
     kinematic_stop: bool = False
     layer_order: list[str] = field(default_factory=list)
+    reference: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "FramePose":
@@ -95,6 +96,7 @@ class FramePose:
             time_s=(float(data["time_s"]) if data.get("time_s") is not None else None),
             kinematic_stop=bool(data.get("kinematic_stop", False)),
             layer_order=list(data.get("layer_order", [])),
+            reference=dict(data.get("reference", {})),
         )
 
     def shifted(self, delta: Vec2) -> "FramePose":
@@ -113,6 +115,7 @@ class FramePose:
             time_s=self.time_s,
             kinematic_stop=self.kinematic_stop,
             layer_order=list(self.layer_order),
+            reference=dict(self.reference),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -135,6 +138,8 @@ class FramePose:
             out["kinematic_stop"] = True
         if self.layer_order:
             out["layer_order"] = list(self.layer_order)
+        if self.reference:
+            out["reference"] = dict(self.reference)
         return out
 
 
