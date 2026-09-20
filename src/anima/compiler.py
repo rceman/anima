@@ -24,6 +24,7 @@ def compile_motion(
     strict_physics: bool = False,
     auto_retime_iterations: int = 0,
     sample_fps: float | None = None,
+    piece_dir: str | Path | None = None,
 ) -> bool:
     source = MotionClip.load(input_path)
     dense = (
@@ -117,6 +118,7 @@ def compile_motion(
         output,
         columns=4,
         preview_scale=max(1, scale),
+        piece_dir=piece_dir,
     )
     (output / "transforms.json").write_text(
         json.dumps(
