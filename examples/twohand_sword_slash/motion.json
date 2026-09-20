@@ -15,7 +15,8 @@
   },
   "metadata": {
     "name": "twohand_sword_slash_01",
-    "intent": "Right-facing grounded two-handed sword slash control motion"
+    "intent": "Right-facing grounded two-handed sword slash control motion",
+    "occlusion_policy": "explicit_arm_depth_v1"
   },
   "frames": [
     {
@@ -120,7 +121,12 @@
         ]
       },
       "time_s": 0,
-      "kinematic_stop": true
+      "kinematic_stop": true,
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
+      ]
     },
     {
       "frame": 1,
@@ -224,7 +230,11 @@
         ]
       },
       "time_s": 0.13,
-      "kinematic_stop": false
+      "kinematic_stop": false,
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
     },
     {
       "frame": 2,
@@ -328,7 +338,11 @@
         ]
       },
       "time_s": 0.3,
-      "kinematic_stop": false
+      "kinematic_stop": false,
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
     },
     {
       "frame": 3,
@@ -432,7 +446,11 @@
         ]
       },
       "time_s": 0.39,
-      "kinematic_stop": false
+      "kinematic_stop": false,
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
     },
     {
       "frame": 4,
@@ -536,7 +554,11 @@
         ]
       },
       "time_s": 0.48,
-      "kinematic_stop": false
+      "kinematic_stop": false,
+      "layer_order": [
+        "left_arm",
+        "right_arm"
+      ]
     },
     {
       "frame": 5,
@@ -640,7 +662,12 @@
         ]
       },
       "time_s": 0.6,
-      "kinematic_stop": false
+      "kinematic_stop": false,
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
+      ]
     },
     {
       "frame": 6,
@@ -744,7 +771,11 @@
         ]
       },
       "time_s": 0.83,
-      "kinematic_stop": false
+      "kinematic_stop": false,
+      "layer_order": [
+        "torso",
+        "left_arm"
+      ]
     },
     {
       "frame": 7,
@@ -848,7 +879,12 @@
         ]
       },
       "time_s": 1.06,
-      "kinematic_stop": true
+      "kinematic_stop": true,
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
+      ]
     }
   ],
   "dynamics": {
