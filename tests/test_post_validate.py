@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from anima.constraints import normalize_clip
 from anima.model import MotionClip
@@ -93,3 +93,41 @@ def test_per_frame_background_drift_is_rejected(tmp_path: Path):
         for issue in report["frames"][1]["issues"]
     }
     assert "background_drift" in frame1_codes
+
+
+def test_missing_sword_blade_path_is_rejected(tmp_path: Path):
+    clip = MotionClip.load("examples/twohand_sword_slash/motion.json")
+    clip = normalize_clip(densify_clip(clip))
+    export_render_set(clip, tmp_path, scale=1)
+
+    source = Image.open(tmp_path / "control_sheet.png").convert("RGB")
+    damaged = source.copy()
+    first = damaged.crop((0, 0, 128, 128))
+    draw = ImageDraw.Draw(first)
+    frame = clip.frames[0]
+    background = first.getpixel((0, 0))
+    draw.line(
+        [
+            (
+                round(frame.weapon.grip_main.x),
+                round(frame.weapon.grip_main.y),
+            ),
+            (
+                round(frame.weapon.tip.x),
+                round(frame.weapon.tip.y),
+            ),
+        ],
+        fill=background,
+        width=7,
+    )
+    damaged.paste(first, (0, 0))
+
+    path = tmp_path / "missing_sword.png"
+    damaged.save(path)
+    report = validate_rendered_sheet(path, clip, columns=4)
+
+    first_codes = {
+        issue["code"]
+        for issue in report["frames"][0]["issues"]
+    }
+    assert "sword_path_missing" in first_codes
