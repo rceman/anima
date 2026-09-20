@@ -9,6 +9,7 @@ from .handoff import imagegen_prompt
 from .manifest import build_animation_manifest
 from .model import MotionClip
 from .render import export_render_set
+from .resample import resample_clip
 from .retime_apply import auto_retime
 from .summary import build_diagnostics_summary
 from .timeline import densify_clip
@@ -20,9 +21,14 @@ def compile_motion(
     scale: int = 4,
     strict_physics: bool = False,
     auto_retime_iterations: int = 0,
+    sample_fps: float | None = None,
 ) -> bool:
     source = MotionClip.load(input_path)
-    dense = densify_clip(source)
+    dense = (
+        resample_clip(source, sample_fps)
+        if sample_fps is not None
+        else densify_clip(source)
+    )
     normalized = normalize_clip(dense)
 
     output = Path(output_dir)
