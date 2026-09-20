@@ -147,6 +147,9 @@
               "type": "string"
             },
             "uniqueItems": true
+          },
+          "reference": {
+            "type": "object"
           }
         },
         "additionalProperties": false
