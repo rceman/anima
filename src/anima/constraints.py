@@ -67,8 +67,33 @@ def solve_two_bone(
             )
         )
 
-    preferred = previous_mid or bend_hint
-    mid = min(candidates, key=lambda point: point.distance_to(preferred))
+    # The authored pole/bend hint remains authoritative on every frame.
+    # Temporal continuity is a secondary term, not a replacement for the pole;
+    # otherwise changing an IK pole later in the motion would have no effect.
+    hint_vector = bend_hint - start
+    hint_side = _cross(direction, hint_vector)
+    pole_mismatch_penalty = (len_a + len_b) * 4.0
+
+    def candidate_score(point: Vec2) -> float:
+        candidate_vector = point - start
+        candidate_side = _cross(direction, candidate_vector)
+
+        pole_cost = point.distance_to(bend_hint)
+        if (
+            abs(hint_side) > 1e-6
+            and abs(candidate_side) > 1e-6
+            and hint_side * candidate_side < 0.0
+        ):
+            pole_cost += pole_mismatch_penalty
+
+        temporal_cost = (
+            0.35 * point.distance_to(previous_mid)
+            if previous_mid is not None
+            else 0.0
+        )
+        return pole_cost + temporal_cost
+
+    mid = min(candidates, key=candidate_score)
     return mid, end, reachable
 
 
