@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw
 from .biomechanics import analyze_body_kinematics
 from .contacts import contact_mode
 from .dynamics import analyze_weapon_dynamics
+from .layers import SEMANTIC_LAYERS, resolve_layer_order
 from .model import FramePose, MotionClip, Vec2
 from .system_dynamics import analyze_system_dynamics
 
@@ -35,16 +36,6 @@ CONTROL = {
     "body": "#DAD3B5",
     "ground": "#626E78",
 }
-SEMANTIC_LAYERS = (
-    "head",
-    "torso",
-    "left_arm",
-    "right_arm",
-    "left_leg",
-    "right_leg",
-    "weapon",
-)
-
 PARTS = {
     "background": "#1E252A",
     "ground": "#626E78",
@@ -448,9 +439,11 @@ def render_parts_frame(
     frame: FramePose,
     scale: int = 4,
 ) -> Image.Image:
-    """Render a layered/segmentation guide for downstream generative rendering.
+    """Render a semantic z-order guide for downstream generative rendering.
 
-    Colors identify semantic body parts; they are not final art colors.
+    Each body part is rendered independently and then composited back-to-front
+    according to the frame's layer_order. This makes arm/torso/weapon crossings
+    explicit instead of leaving occlusion for ImageGen to invent.
     """
     image = Image.new("RGB", (clip.width, clip.height), PARTS["background"])
     draw = ImageDraw.Draw(image)
@@ -460,50 +453,15 @@ def render_parts_frame(
         width=1,
     )
 
-    if all(
-        name in frame.joints
-        for name in ("shoulder_l", "shoulder_r", "hip_r", "hip_l")
-    ):
-        draw.polygon(
-            [
-                _xy(frame.joints["shoulder_l"]),
-                _xy(frame.joints["shoulder_r"]),
-                _xy(frame.joints["hip_r"]),
-                _xy(frame.joints["hip_l"]),
-            ],
-            fill=PARTS["torso"],
+    for layer in resolve_layer_order(frame.layer_order):
+        mask_rgba = render_semantic_layer(clip, frame, layer)
+        mask = mask_rgba.getchannel("A")
+        overlay = Image.new(
+            "RGB",
+            (clip.width, clip.height),
+            PARTS[layer],
         )
-
-    head = frame.joints.get("head")
-    if head:
-        x, y = _xy(head)
-        if {"shoulder_l", "shoulder_r"}.issubset(frame.joints):
-            shoulder_mid = Vec2(
-                (frame.joints["shoulder_l"].x + frame.joints["shoulder_r"].x) * 0.5,
-                (frame.joints["shoulder_l"].y + frame.joints["shoulder_r"].y) * 0.5,
-            )
-            neck_target = Vec2(head.x, head.y + 5.0)
-            _line(draw, shoulder_mid, neck_target, PARTS["torso"], 5)
-        draw.ellipse([x - 5, y - 6, x + 5, y + 5], fill=PARTS["head"])
-
-    segment_groups = (
-        (("shoulder_l", "elbow_l", "hand_l"), PARTS["left_arm"]),
-        (("shoulder_r", "elbow_r", "hand_r"), PARTS["right_arm"]),
-        (("hip_l", "knee_l", "foot_l"), PARTS["left_leg"]),
-        (("hip_r", "knee_r", "foot_r"), PARTS["right_leg"]),
-    )
-    for names, color in segment_groups:
-        if not all(name in frame.joints for name in names):
-            continue
-        _line(draw, frame.joints[names[0]], frame.joints[names[1]], color, 5)
-        _line(draw, frame.joints[names[1]], frame.joints[names[2]], color, 5)
-        for name in names[1:]:
-            x, y = _xy(frame.joints[name])
-            draw.ellipse([x - 3, y - 3, x + 3, y + 3], fill=color)
-
-    _line(draw, frame.weapon.grip_off, frame.weapon.tip, PARTS["weapon"], 3)
-    gx, gy = _xy(frame.weapon.grip_main)
-    draw.ellipse([gx - 2, gy - 2, gx + 2, gy + 2], fill=PARTS["weapon"])
+        image.paste(overlay, (0, 0), mask)
 
     if scale != 1:
         image = image.resize(
@@ -511,7 +469,6 @@ def render_parts_frame(
             Image.Resampling.NEAREST,
         )
     return image
-
 
 
 def render_inspection_frame(
@@ -625,6 +582,19 @@ def render_inspection_frame(
         "LEFT  square/blue",
         "RIGHT circle/orange",
         "P=planted G=grounded",
+        "z(back->front)",
+        " ".join(
+            {
+                "left_leg": "LL",
+                "right_leg": "RL",
+                "torso": "T",
+                "left_arm": "LA",
+                "right_arm": "RA",
+                "head": "H",
+                "weapon": "W",
+            }[name]
+            for name in resolve_layer_order(frame.layer_order)
+        ),
     ]
 
     if body_diag:
