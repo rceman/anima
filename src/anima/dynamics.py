@@ -147,6 +147,14 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
     com_acceleration = vec_derivative_times(com_velocity, times)
     com_jerk = vec_derivative_times(com_acceleration, times)
 
+    tip_px = [frame.weapon.tip for frame in clip.frames]
+    tip_m = [
+        Vec2(point.x / ppm, point.y / ppm)
+        for point in tip_px
+    ]
+    tip_velocity = vec_derivative_times(tip_m, times, stops)
+    tip_acceleration = vec_derivative_times(tip_velocity, times)
+
     handle_force: list[Vec2] = []
     reaction_force: list[Vec2] = []
     translational_energy: list[float] = []
@@ -382,6 +390,11 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
                 "estimated_torque_nm": torque[i],
                 "rotational_energy_j": rotational_energy[i],
                 "weapon_com_px": com_px[i].as_list(),
+                "tip_px": tip_px[i].as_list(),
+                "tip_velocity_m_s": tip_velocity[i].as_list(),
+                "tip_speed_m_s": tip_velocity[i].length(),
+                "tip_acceleration_m_s2": tip_acceleration[i].as_list(),
+                "tip_acceleration_mag_m_s2": tip_acceleration[i].length(),
                 "com_velocity_m_s": com_velocity[i].as_list(),
                 "com_acceleration_m_s2": com_acceleration[i].as_list(),
                 "com_jerk_m_s3": com_jerk[i].as_list(),
