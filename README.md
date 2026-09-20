@@ -216,7 +216,7 @@ Weapon motion is not treated as a sequence of unrelated angles. A motion clip ca
 }
 ```
 
-Anima computes angular velocity, angular acceleration, estimated drive torque, rotational energy, weapon center-of-mass translation, handle force, and mechanical power for every frame. Drive torque and braking torque are intentionally separate budgets: accelerating the sword and arresting its momentum are different physical tasks. At impact it also estimates minimum stopping time and minimum follow-through angle from the configured inertia and braking torque.
+Anima computes angular velocity, angular acceleration, inertial torque, gravity torque, damping torque, total hand/drive torque, sword-tip speed, rotational energy, weapon center-of-mass translation, handle force, and mechanical power for every frame. Drive torque and braking torque are intentionally separate budgets: accelerating the sword and arresting its momentum are different physical tasks. Gravity is also treated separately because slowing an animation reduces inertial/damping demand but does not make a horizontally held heavy sword weigh less. At impact Anima estimates minimum stopping time and minimum follow-through angle from the configured inertia and braking torque.
 
 This is deliberately **physically inspired rather than a full biomechanics simulator**. The important rule is that a heavy sword cannot change angular velocity arbitrarily. If a non-colliding swing reverses direction immediately, demands excessive braking torque, or stops with too little follow-through, the dynamics report flags it.
 
@@ -305,6 +305,12 @@ anima retime examples/twohand_sword_slash/motion.json \
 ```
 
 Or during compile with `--auto-retime N`. Retiming writes explicit per-pose timestamps; the debug/control GIFs use those real per-frame durations instead of assuming one uniform delay.
+
+Some violations cannot be repaired by retiming. For example, if the static
+gravity torque of a pose already exceeds the configured drive-torque budget,
+slowing the motion cannot solve it. Anima reports such cases as
+`torque_not_retimeable` and stops the automatic retiming loop instead of
+repeatedly stretching the same unchanged motion.
 
 The two-handed sword normalization order is dependency-driven:
 
