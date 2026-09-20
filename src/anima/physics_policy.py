@@ -15,6 +15,7 @@ HARD_CODES = {
     "collision_response_mismatch",
     "system_friction_limit_exceeded",
     "joint_torque_limit_exceeded",
+    "dynamic_balance_limit_exceeded",
 }
 
 SOFT_CODES = {
