@@ -933,6 +933,18 @@
           20,
           175
         ]
+      },
+      "shoulder_girdle_max_shift_px": 4,
+      "arm_reach_margin_px": 0.5,
+      "arm_max_extension_ratio": 0.965,
+      "arm_min_extension_ratio": 0.15,
+      "dynamic_balance_tolerance_px": 1.5,
+      "enforce_dynamic_balance": false,
+      "angular_momentum": {
+        "body_radius_of_gyration_m": 0.3,
+        "body_spin_scale": 1,
+        "weapon_spin_scale": 1,
+        "orbital_scale": 1
       }
     }
   }
