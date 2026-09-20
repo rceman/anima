@@ -69,6 +69,35 @@ source .venv/bin/activate
 pip install -e '.[dev]'
 ```
 
+## Local development loop
+
+Development is intentionally local-only. The repository does **not** use GitHub Actions.
+
+Run the complete deterministic check/render loop from the repository root:
+
+```bash
+python scripts/local_check.py
+```
+
+This runs the unit tests, rebuilds the canonical motion from its compact recipe,
+normalizes and compiles it, generates all debug/control/semantic assets,
+self-validates the control sheet, and checks the golden sword-motion invariants.
+
+For the stricter release-quality gate:
+
+```bash
+python scripts/local_check.py --strict-physics --strict-occlusion
+```
+
+For fast render/physics iteration without pytest:
+
+```bash
+python scripts/local_check.py --skip-tests --keep-output
+```
+
+All artifacts are written under `output/local-check/` by default, including
+`local_check_summary.json`. No network or CI service is required.
+
 ## Compile the reference sword slash
 
 ```bash
@@ -85,6 +114,7 @@ Canonical outputs:
 motion.normalized.json
 validation.json
 dynamics.json
+occlusion.json
 physics_validation.json
 timing_recommendation.json
 diagnostics_summary.json
@@ -103,7 +133,8 @@ parts_sheet.png        # canonical semantic/layered guide
 Preview-only outputs:
 
 ```text
-debug_preview.gif          # intentionally very large diagnostic animation
+inspection_preview.gif     # preferred large diagnostic view with metrics sidebar
+debug_preview.gif          # dense diagnostic overlay
 control_preview.gif
 parts_preview.gif
 review_preview.gif         # debug skeleton + mannequin side-by-side
@@ -333,11 +364,11 @@ Implemented:
 - physics policy with optional strict compile gate;
 - global and phase-local physics-informed retiming recommendations;
 - automatic phase-local retiming with explicit timestamps;
-- compact diagnostics summary for fast review/CI;
+- compact diagnostics summary for fast local review;
 - generated ImageGen handoff prompt;
 - CLI;
 - tests;
-- GitHub Actions test/compile gate;
+- local-only test/compile/render harness (`scripts/local_check.py`);
 - canonical two-handed sword example.
 
 Next work should focus on stronger shoulder/torso biomechanics, collision/impact impulses, reference-motion authoring helpers, and post-ImageGen geometric comparison.
