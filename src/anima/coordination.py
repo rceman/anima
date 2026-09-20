@@ -15,6 +15,8 @@ class CoordinationProfile:
     peak_order_tolerance_s: float = 0.05
     warn_near_lock: bool = True
     warn_kinetic_chain_order: bool = True
+    warn_ik_branch_flip: bool = True
+    branch_flip_min_offset_px: float = 1.5
 
     @classmethod
     def from_clip(cls, clip: MotionClip) -> "CoordinationProfile":
@@ -33,11 +35,33 @@ class CoordinationProfile:
             warn_kinetic_chain_order=bool(
                 raw.get("warn_kinetic_chain_order", True)
             ),
+            warn_ik_branch_flip=bool(
+                raw.get("warn_ik_branch_flip", True)
+            ),
+            branch_flip_min_offset_px=float(
+                raw.get("branch_flip_min_offset_px", 1.5)
+            ),
         )
 
 
 def _mid(a: Vec2, b: Vec2) -> Vec2:
     return Vec2((a.x + b.x) * 0.5, (a.y + b.y) * 0.5)
+
+
+
+
+def _bend_side_offset(
+    start: Vec2,
+    mid: Vec2,
+    end: Vec2,
+) -> float:
+    axis = end - start
+    length = axis.length()
+    if length <= 1e-9:
+        return 0.0
+    rel = mid - start
+    cross = axis.x * rel.y - axis.y * rel.x
+    return cross / length
 
 
 def _peak_time(
@@ -78,6 +102,7 @@ def analyze_coordination(
 
     hand_midpoints: list[Vec2] = []
     sword_tips: list[Vec2] = []
+    previous_bend_offsets: dict[str, float] = {}
 
     for index, frame in enumerate(clip.frames):
         per_side: dict[str, Any] = {}
@@ -135,12 +160,57 @@ def analyze_coordination(
 
         sword_tips.append(frame.weapon.tip)
 
+        bend_offsets: dict[str, float] = {}
+        for chain, start_name, mid_name, end_name in (
+            ("elbow_l", "shoulder_l", "elbow_l", "hand_l"),
+            ("elbow_r", "shoulder_r", "elbow_r", "hand_r"),
+            ("knee_l", "hip_l", "knee_l", "foot_l"),
+            ("knee_r", "hip_r", "knee_r", "foot_r"),
+        ):
+            if not {
+                start_name,
+                mid_name,
+                end_name,
+            }.issubset(frame.joints):
+                continue
+            offset = _bend_side_offset(
+                frame.joints[start_name],
+                frame.joints[mid_name],
+                frame.joints[end_name],
+            )
+            bend_offsets[chain] = offset
+
+            previous_offset = previous_bend_offsets.get(chain)
+            if (
+                profile.warn_ik_branch_flip
+                and previous_offset is not None
+                and previous_offset * offset < 0.0
+                and abs(previous_offset)
+                >= profile.branch_flip_min_offset_px
+                and abs(offset)
+                >= profile.branch_flip_min_offset_px
+            ):
+                warnings.append(
+                    {
+                        "code": "ik_branch_flip",
+                        "frame": frame.frame,
+                        "joint": chain,
+                        "message": (
+                            f"{chain} changes bend side abruptly "
+                            f"({previous_offset:.2f}px -> {offset:.2f}px) "
+                            "without passing near a straight chain."
+                        ),
+                    }
+                )
+            previous_bend_offsets[chain] = offset
+
         frame_reports.append(
             {
                 "frame": frame.frame,
                 "time_s": times[index],
                 "label": frame.label,
                 "arms": per_side,
+                "bend_offsets_px": bend_offsets,
             }
         )
 
