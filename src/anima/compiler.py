@@ -53,11 +53,16 @@ def compile_motion(
 
     analysis = analyze_motion(normalized)
     dynamics_report = analysis["dynamics"]
+    occlusion_report = analysis["occlusion"]
     physics_report = analysis["physics_validation"]
     timing_report = analysis["timing_recommendation"]
 
     (output / "dynamics.json").write_text(
         json.dumps(dynamics_report, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (output / "occlusion.json").write_text(
+        json.dumps(occlusion_report, indent=2) + "\n",
         encoding="utf-8",
     )
     (output / "physics_validation.json").write_text(
