@@ -137,3 +137,48 @@ def test_sampled_violation_affects_both_adjacent_keyframe_intervals():
     timing = recommend_timing(clip, report)
     assert timing["segments"][0]["recommended_time_scale"] > 1.0
     assert timing["segments"][1]["recommended_time_scale"] > 1.0
+
+
+def test_static_gravity_torque_is_not_falsely_fixed_by_slowing_time():
+    clip = MotionClip(
+        width=128,
+        height=128,
+        ground_y=108,
+        fps=10,
+        rig="test",
+        frames=[
+            SimpleNamespace(frame=0, label="ready"),
+            SimpleNamespace(frame=1, label="hold"),
+        ],
+    )
+    report = {
+        "weapon": {
+            "profile": {
+                "inertia_kg_m2": 1.0,
+                "damping_nm_per_rad_s": 0.0,
+                "max_drive_torque_nm": 5.0,
+            },
+            "frames": [
+                {
+                    "frame": 1,
+                    "angular_velocity_deg_s": 0.0,
+                    "angular_acceleration_deg_s2": 0.0,
+                    "inertial_torque_nm": 0.0,
+                    "damping_torque_nm": 0.0,
+                    "gravity_torque_nm": -10.0,
+                }
+            ],
+        },
+        "body": {"profile": {}, "frames": []},
+        "system": {"profile": {}, "frames": []},
+    }
+
+    timing = recommend_timing(clip, report)
+
+    reason = next(
+        item
+        for item in timing["reasons"]
+        if item["code"] == "torque_not_retimeable"
+    )
+    assert reason["retime_possible"] is False
+    assert timing["recommended"]["global_time_scale"] == 1.0
