@@ -125,18 +125,44 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
     omega = scalar_derivative_times(angles, times, stops)
     alpha = scalar_derivative_times(omega, times)
     inertia = profile.inertia_kg_m2
+
+    body_raw = clip.dynamics.get("body", {})
+    ppm = max(float(body_raw.get("pixels_per_meter", 40.0)), 1e-9)
+    gravity = float(body_raw.get("gravity_m_s2", 9.81))
+
+    com_radius_m = (
+        profile.effective_length_m
+        * profile.center_of_mass_fraction
+    )
+    inertial_torque = [
+        inertia * alpha_i
+        for alpha_i in alpha
+    ]
+    damping_torque = [
+        profile.damping_nm_per_rad_s * omega_i
+        for omega_i in omega
+    ]
+    # sword_angle() is measured in mathematical x/right, y/up coordinates.
+    # Gravity acts downward, producing tau_g = -m*g*r*cos(theta) about the
+    # primary grip. The hands must counter that external torque in addition to
+    # producing angular acceleration and overcoming damping.
+    gravity_torque = [
+        -profile.mass_kg
+        * gravity
+        * com_radius_m
+        * math.cos(angle)
+        for angle in angles
+    ]
     torque = [
-        inertia * alpha_i + profile.damping_nm_per_rad_s * omega_i
-        for alpha_i, omega_i in zip(alpha, omega)
+        inertial_torque[i]
+        - gravity_torque[i]
+        + damping_torque[i]
+        for i in range(len(angles))
     ]
     rotational_energy = [
         0.5 * inertia * omega_i * omega_i
         for omega_i in omega
     ]
-
-    body_raw = clip.dynamics.get("body", {})
-    ppm = max(float(body_raw.get("pixels_per_meter", 40.0)), 1e-9)
-    gravity = float(body_raw.get("gravity_m_s2", 9.81))
 
     com_px = [
         _weapon_com_px(frame, profile.center_of_mass_fraction)
@@ -388,6 +414,9 @@ def analyze_weapon_dynamics(clip: MotionClip) -> dict[str, Any]:
                 "angular_velocity_deg_s": math.degrees(omega[i]),
                 "angular_acceleration_deg_s2": math.degrees(alpha[i]),
                 "estimated_torque_nm": torque[i],
+                "inertial_torque_nm": inertial_torque[i],
+                "gravity_torque_nm": gravity_torque[i],
+                "damping_torque_nm": damping_torque[i],
                 "rotational_energy_j": rotational_energy[i],
                 "weapon_com_px": com_px[i].as_list(),
                 "tip_px": tip_px[i].as_list(),
