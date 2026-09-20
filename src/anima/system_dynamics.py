@@ -30,6 +30,9 @@ def analyze_system_dynamics(
     balance_tolerance_px = float(
         body_profile.get("dynamic_balance_tolerance_px", 1.0)
     )
+    enforce_dynamic_balance = bool(
+        body_profile.get("enforce_dynamic_balance", False)
+    )
 
     body_frames = body_report.get("frames", [])
     weapon_frames = weapon_report.get("frames", [])
@@ -160,18 +163,27 @@ def analyze_system_dynamics(
                     support_max - center_of_pressure_x,
                 )
                 if dynamic_balance_margin < -balance_tolerance_px:
+                    balance_message = (
+                        f"Estimated center of pressure "
+                        f"x={center_of_pressure_x:.2f}px lies outside "
+                        f"support [{support_min:.2f}, {support_max:.2f}]px "
+                        f"by {-dynamic_balance_margin:.2f}px."
+                    )
                     warnings.append(
                         {
                             "code": "dynamic_balance_outside_support",
                             "frame": frame.frame,
-                            "message": (
-                                f"Estimated center of pressure "
-                                f"x={center_of_pressure_x:.2f}px lies outside "
-                                f"support [{support_min:.2f}, {support_max:.2f}]px "
-                                f"by {-dynamic_balance_margin:.2f}px."
-                            ),
+                            "message": balance_message,
                         }
                     )
+                    if enforce_dynamic_balance:
+                        warnings.append(
+                            {
+                                "code": "dynamic_balance_limit_exceeded",
+                                "frame": frame.frame,
+                                "message": balance_message,
+                            }
+                        )
 
             if normal > 1e-6 and friction_ratio > mu:
                 warnings.append(
@@ -223,6 +235,7 @@ def analyze_system_dynamics(
             "gravity_m_s2": gravity,
             "friction_coefficient": mu,
             "dynamic_balance_tolerance_px": balance_tolerance_px,
+            "enforce_dynamic_balance": enforce_dynamic_balance,
         },
         "angular_momentum": angular_report,
         "frames": frames,
