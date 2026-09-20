@@ -9,6 +9,7 @@ from .authoring import build_clip_from_recipe_files
 from .compiler import compile_motion
 from .constraints import normalize_clip, validate_clip
 from .correction import build_render_correction_prompt
+from .cutout import export_cutout_set
 from .model import MotionClip
 from .post_validate import validate_rendered_sheet
 from .retime_apply import auto_retime
@@ -40,6 +41,27 @@ def _cmd_author(args: argparse.Namespace) -> int:
     return 0 if report.ok else 2
 
 
+def _cmd_cutout(args: argparse.Namespace) -> int:
+    clip = MotionClip.load(args.input)
+    clip = densify_clip(clip)
+    if args.normalize:
+        clip = normalize_clip(clip)
+
+    export_cutout_set(
+        clip,
+        args.output,
+        columns=args.columns,
+        preview_scale=args.scale,
+        piece_dir=args.pieces,
+    )
+    print(f"cutout: {args.output}")
+    print(
+        "pieces: "
+        + ("painted" if args.pieces is not None else "procedural")
+    )
+    return 0
+
+
 def _cmd_compile(args: argparse.Namespace) -> int:
     ok = compile_motion(
         args.input,
@@ -48,6 +70,7 @@ def _cmd_compile(args: argparse.Namespace) -> int:
         strict_physics=args.strict_physics,
         auto_retime_iterations=args.auto_retime,
         sample_fps=args.sample_fps,
+        piece_dir=args.pieces,
     )
     print(f"compiled: {args.output}")
     print(f"validation: {'PASS' if ok else 'FAIL'}")
@@ -186,12 +209,35 @@ def build_parser() -> argparse.ArgumentParser:
     )
     author_cmd.set_defaults(func=_cmd_author)
 
+    cutout_cmd = sub.add_parser(
+        "cutout",
+        help="Render deterministic bone/cutout animation from one bind-pose piece pack",
+    )
+    cutout_cmd.add_argument("input", type=Path)
+    cutout_cmd.add_argument("--output", "-o", type=Path, required=True)
+    cutout_cmd.add_argument(
+        "--pieces",
+        type=Path,
+        default=None,
+        help="Directory of painted bind-piece PNGs; omit for procedural debug masks",
+    )
+    cutout_cmd.add_argument("--columns", type=int, default=4)
+    cutout_cmd.add_argument("--scale", type=int, default=4)
+    cutout_cmd.add_argument("--normalize", action="store_true")
+    cutout_cmd.set_defaults(func=_cmd_cutout)
+
     compile_cmd = sub.add_parser(
         "compile",
         help="Normalize, validate, and render a motion clip",
     )
     compile_cmd.add_argument("input", type=Path)
     compile_cmd.add_argument("--output", "-o", type=Path, required=True)
+    compile_cmd.add_argument(
+        "--pieces",
+        type=Path,
+        default=None,
+        help="Optional directory of painted full-canvas RGBA bind pieces",
+    )
     compile_cmd.add_argument(
         "--scale",
         type=int,
