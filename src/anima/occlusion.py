@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-import math
 from typing import Any
 
 from .layers import resolve_layer_order
@@ -123,15 +122,20 @@ def _point_in_polygon(point: Vec2, polygon: list[Vec2]) -> bool:
     for i in range(count):
         a = polygon[i]
         b = polygon[j]
-        if (
-            (a.y > point.y) != (b.y > point.y)
-            and point.x
-            < (b.x - a.x)
-            * (point.y - a.y)
-            / max(b.y - a.y, 1e-12)
-            + a.x
-        ):
-            inside = not inside
+        crosses_scanline = (a.y > point.y) != (b.y > point.y)
+        if crosses_scanline:
+            dy = b.y - a.y
+            if abs(dy) <= 1e-12:
+                j = i
+                continue
+            crossing_x = (
+                (b.x - a.x)
+                * (point.y - a.y)
+                / dy
+                + a.x
+            )
+            if point.x < crossing_x:
+                inside = not inside
         j = i
     return inside
 
