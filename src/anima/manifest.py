@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .contacts import contact_mode
+from .layers import resolve_layer_order
 from .model import MotionClip
 
 
@@ -57,6 +58,9 @@ def build_animation_manifest(
                 "root": frame.root.as_list(),
                 "ground_y": clip.ground_y,
                 "kinematic_stop": frame.kinematic_stop,
+                "layer_order": list(
+                    resolve_layer_order(frame.layer_order)
+                ),
                 "contacts": {
                     name: contact_mode(value)
                     for name, value in frame.contacts.items()
