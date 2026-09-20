@@ -16,7 +16,8 @@
   "metadata": {
     "name": "twohand_sword_slash_parametric_v1",
     "source": "derived from canonical full-joint motion",
-    "note": "Compact authoring source: axial pose + weapon + feet + IK poles."
+    "note": "Compact authoring source: axial pose + weapon + feet + IK poles.",
+    "occlusion_policy": "explicit_arm_depth_v1"
   },
   "poses": [
     {
@@ -63,6 +64,11 @@
       "knee_pole_r": [
         76,
         92
+      ],
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
       ]
     },
     {
@@ -108,6 +114,10 @@
       "knee_pole_r": [
         75,
         92
+      ],
+      "layer_order": [
+        "left_arm",
+        "right_arm"
       ]
     },
     {
@@ -153,6 +163,10 @@
       "knee_pole_r": [
         74,
         92
+      ],
+      "layer_order": [
+        "left_arm",
+        "right_arm"
       ]
     },
     {
@@ -198,6 +212,10 @@
       "knee_pole_r": [
         75,
         92
+      ],
+      "layer_order": [
+        "left_arm",
+        "right_arm"
       ]
     },
     {
@@ -243,6 +261,10 @@
       "knee_pole_r": [
         78,
         92
+      ],
+      "layer_order": [
+        "left_arm",
+        "right_arm"
       ]
     },
     {
@@ -288,6 +310,11 @@
       "knee_pole_r": [
         79,
         92
+      ],
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
       ]
     },
     {
@@ -333,6 +360,10 @@
       "knee_pole_r": [
         78,
         92
+      ],
+      "layer_order": [
+        "torso",
+        "left_arm"
       ]
     },
     {
@@ -379,6 +410,11 @@
       "knee_pole_r": [
         76,
         92
+      ],
+      "layer_order": [
+        "torso",
+        "left_arm",
+        "right_arm"
       ]
     }
   ]
