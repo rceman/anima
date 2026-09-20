@@ -635,6 +635,18 @@ def render_inspection_frame(
         ),
     ]
 
+    reference = frame.reference
+    if reference:
+        ref_kind = str(reference.get("kind", "ref"))
+        source_time = reference.get("source_time_s")
+        confidence = reference.get("confidence")
+        parts = [f"ref {ref_kind}"]
+        if source_time is not None:
+            parts.append(f"@{float(source_time):.3f}s")
+        if confidence is not None:
+            parts.append(f"c={float(confidence):.2f}")
+        lines.append(" ".join(parts))
+
     if body_diag:
         velocity = Vec2.from_any(body_diag.get("com_velocity_m_s", [0.0, 0.0]))
         acceleration = Vec2.from_any(body_diag.get("com_acceleration_m_s2", [0.0, 0.0]))
