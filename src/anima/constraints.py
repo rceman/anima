@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import math
 
 from .contacts import GROUNDED, PLANTED, contact_mode, is_ground_contact
+from .layers import validate_layer_order
 from .model import FramePose, MotionClip, Vec2, WeaponPose
 from .rig import HUMANOID_BONES, RestGeometry
 
@@ -414,6 +415,7 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
                 label=frame.label,
                 time_s=frame.time_s,
                 kinematic_stop=frame.kinematic_stop,
+                layer_order=list(frame.layer_order),
             )
         )
 
@@ -439,6 +441,11 @@ def validate_clip(clip: MotionClip, tolerance: float = 0.75) -> ValidationReport
     issues: list[Issue] = []
 
     for frame in clip.frames:
+        for message in validate_layer_order(frame.layer_order):
+            issues.append(
+                Issue(frame.frame, "layer_order", message)
+            )
+
         for foot in ("foot_l", "foot_r"):
             if is_ground_contact(frame.contacts.get(foot)) and foot in frame.joints:
                 delta = abs(frame.joints[foot].y - clip.ground_y)
