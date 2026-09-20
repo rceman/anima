@@ -6,6 +6,7 @@ from .biomechanics import analyze_body_kinematics
 from .coordination import analyze_coordination
 from .dynamics import analyze_weapon_dynamics
 from .model import MotionClip
+from .occlusion import analyze_occlusion
 from .physics_policy import evaluate_physics
 from .retiming import recommend_timing
 from .strength import analyze_arm_strength
@@ -29,6 +30,7 @@ def analyze_motion(clip: MotionClip) -> dict[str, Any]:
 
     return {
         "dynamics": dynamics,
+        "occlusion": analyze_occlusion(clip),
         "physics_validation": evaluate_physics(dynamics),
         "timing_recommendation": recommend_timing(clip, dynamics),
     }
