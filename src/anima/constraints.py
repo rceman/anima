@@ -428,6 +428,7 @@ def normalize_clip(clip: MotionClip) -> MotionClip:
                 time_s=frame.time_s,
                 kinematic_stop=frame.kinematic_stop,
                 layer_order=list(frame.layer_order),
+                reference=dict(frame.reference),
             )
         )
 
