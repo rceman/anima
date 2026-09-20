@@ -26,6 +26,7 @@ class BodyDynamicsProfile:
     max_planted_slip_px: float = 0.25
     max_com_accel_m_s2: float = 35.0
     max_com_jerk_m_s3: float = 350.0
+    enforce_dynamic_balance: bool = False
 
     @classmethod
     def from_clip(cls, clip: MotionClip) -> "BodyDynamicsProfile":
@@ -39,6 +40,7 @@ class BodyDynamicsProfile:
             max_planted_slip_px=float(raw.get("max_planted_slip_px", 0.25)),
             max_com_accel_m_s2=float(raw.get("max_com_accel_m_s2", 35.0)),
             max_com_jerk_m_s3=float(raw.get("max_com_jerk_m_s3", 350.0)),
+            enforce_dynamic_balance=bool(raw.get("enforce_dynamic_balance", False)),
         )
 
 
