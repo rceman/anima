@@ -25,6 +25,7 @@ class RenderValidationProfile:
     pose_mask_radius_px: int = 6
     min_control_mask_coverage: float = 0.70
     min_rendered_near_control: float = 0.55
+    max_background_drift: float = 12.0
 
 
 def _color_distance(a: tuple[int, int, int], b: tuple[int, int, int]) -> float:
@@ -468,6 +469,34 @@ def validate_rendered_sheet(
         frame_reports.append(
             _frame_report(crop, frame, clip, profile)
         )
+
+    if frame_reports:
+        canonical_background = tuple(
+            int(value)
+            for value in frame_reports[0]["background_rgb"]
+        )
+        for frame_report in frame_reports[1:]:
+            background = tuple(
+                int(value)
+                for value in frame_report["background_rgb"]
+            )
+            drift = _color_distance(
+                background,
+                canonical_background,
+            )
+            frame_report["background_drift"] = drift
+            if drift > profile.max_background_drift:
+                frame_report["issues"].append(
+                    {
+                        "code": "background_drift",
+                        "message": (
+                            f"Frame background differs from frame 0 by "
+                            f"{drift:.1f} RGB-distance units; allowed "
+                            f"{profile.max_background_drift:.1f}."
+                        ),
+                    }
+                )
+        frame_reports[0]["background_drift"] = 0.0
 
     all_issues = [
         {
