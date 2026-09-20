@@ -1,7 +1,7 @@
 import pytest
 from types import SimpleNamespace
 
-from anima.model import MotionClip
+from anima.model import MotionClip, Vec2
 from anima.system_dynamics import analyze_system_dynamics
 
 
