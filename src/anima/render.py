@@ -24,6 +24,7 @@ DEBUG = {
     "acceleration": "#FFD166",
     "support": "#8A98A6",
     "system": "#B3FFFC",
+    "cop": "#FFF2A8",
     "force": "#F5F5F5",
     "pole": "#B0BEC5",
     "ghost": "#56616A",
@@ -308,6 +309,22 @@ def render_debug_frame(
                 outline=DEBUG["system"],
             )
             draw.text((sx + 5, sy + 2), "SYS", fill=DEBUG["system"])
+
+
+        cop_x = system_diag.get("center_of_pressure_x_px")
+        if cop_x is not None:
+            cop_xi = round(float(cop_x))
+            cop_y = round(clip.ground_y)
+            draw.polygon(
+                [
+                    (cop_xi, cop_y - 5),
+                    (cop_xi + 4, cop_y - 1),
+                    (cop_xi, cop_y + 3),
+                    (cop_xi - 4, cop_y - 1),
+                ],
+                outline=DEBUG["cop"],
+            )
+            draw.text((cop_xi + 4, cop_y - 12), "COP", fill=DEBUG["cop"])
 
         grf = system_diag.get("ground_reaction_force")
         support = system_diag.get("support")
@@ -639,6 +656,11 @@ def render_inspection_frame(
             f"GRF {float(grf.get('magnitude_n', 0.0)):.0f} N",
             f"mu req {float(grf.get('required_friction_ratio', 0.0)):.2f}",
         ])
+        balance_margin = system_diag.get("dynamic_balance_margin_px")
+        if balance_margin is not None:
+            lines.append(
+                f"balance {float(balance_margin):.1f}px"
+            )
 
     y = 3
     for line in lines:
