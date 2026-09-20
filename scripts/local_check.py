@@ -90,10 +90,12 @@ def _artifact_checks(output: Path, frame_count: int) -> Check:
         output / "control_sheet.png",
         output / "parts_sheet.png",
         output / "cutout_sheet.png",
+        output / "bind_piece_sheet.png",
         output / "debug_sheet.png",
         output / "control_preview.gif",
         output / "parts_preview.gif",
         output / "cutout_preview.gif",
+        output / "rig_review_preview.gif",
         output / "inspection_preview.gif",
     ]
     missing = [str(path) for path in required if not path.exists()]
@@ -104,6 +106,10 @@ def _artifact_checks(output: Path, frame_count: int) -> Check:
             _assert_image_size(output / "control_sheet.png", sheet),
             _assert_image_size(output / "parts_sheet.png", sheet),
             _assert_image_size(output / "cutout_sheet.png", sheet),
+            _assert_image_size(
+                output / "bind_piece_sheet.png",
+                (512, 384),
+            ),
         ]
         for index in range(frame_count):
             image_checks.append(
