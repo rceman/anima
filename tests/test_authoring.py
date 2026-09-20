@@ -51,6 +51,7 @@ def test_parametric_recipe_builds_full_pose_without_authored_elbows():
         contacts={"foot_l": "planted", "foot_r": "planted"},
         label="windup",
         time_s=0.2,
+        layer_order=["left_arm", "torso", "right_arm"],
     )
 
     pose = author.frame(recipe)
@@ -60,6 +61,7 @@ def test_parametric_recipe_builds_full_pose_without_authored_elbows():
     assert "elbow_l" in pose.ik_poles
     assert "elbow_r" in pose.ik_poles
     assert pose.time_s == 0.2
+    assert pose.layer_order == ["left_arm", "torso", "right_arm"]
 
 
 def test_parametric_clip_normalizes_to_valid_fixed_geometry():
