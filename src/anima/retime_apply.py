@@ -106,7 +106,8 @@ def auto_retime(
         # A hard physics failure must not be ignored merely because the
         # required correction is numerically small (for example friction
         # ratio 0.817 vs a configured 0.800 limit).
-        current = apply_timing_recommendation(
+        old_times = current.times_s()
+        next_clip = apply_timing_recommendation(
             current,
             timing,
             max_interval_scale=max_interval_scale,
@@ -116,6 +117,21 @@ def auto_retime(
                 else 1.0
             ),
         )
+        new_times = next_clip.times_s()
+
+        if all(
+            abs(before - after) <= 1e-12
+            for before, after in zip(old_times, new_times)
+        ):
+            history[-1]["retime_blocked"] = True
+            history[-1]["nonretimeable_reasons"] = [
+                reason
+                for reason in timing.get("reasons", [])
+                if reason.get("retime_possible") is False
+            ]
+            break
+
+        current = next_clip
 
     final_analysis = analyze_motion(current)
     history.append(
