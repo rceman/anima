@@ -31,6 +31,9 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
     cutout_sheet = Image.open(tmp_path / "cutout_sheet.png")
     assert cutout_sheet.size == (512, 256)
 
+    bind_piece_sheet = Image.open(tmp_path / "bind_piece_sheet.png")
+    assert bind_piece_sheet.size == (512, 384)
+
     parts_frame = Image.open(tmp_path / "parts_frames" / "frame_00.png")
     assert parts_frame.size == (128, 128)
 
@@ -57,6 +60,9 @@ def test_example_exports_canonical_128_frames(tmp_path: Path):
 
     cutout_preview = Image.open(tmp_path / "cutout_preview.gif")
     assert cutout_preview.size == (512, 512)
+
+    rig_review = Image.open(tmp_path / "rig_review_preview.gif")
+    assert rig_review.size == (1152, 384)
 
     review_preview = Image.open(tmp_path / "review_preview.gif")
     assert review_preview.size == (2048, 1024)
