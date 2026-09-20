@@ -175,6 +175,26 @@ Review artifacts in this order:
 8. `physics_validation.json`;
 9. `timing_recommendation.json`.
 
+## 6a. Choose pose density after authoring
+
+Do not add noisy reference poses merely to make the spritesheet smoother.
+Author the mechanically meaningful keys first, then choose the guide-sheet
+density independently.
+
+For example:
+
+```bash
+anima compile motion.json \
+  --output output/ \
+  --sample-fps 16 \
+  --auto-retime 3
+```
+
+The time sampler preserves every authored key timestamp exactly and inserts
+additional Hermite poses between them. This is the preferred workflow when a
+video establishes real timing but the final pixel animation needs a denser
+spritesheet.
+
 ### Debug acceptance
 
 The colored debug skeleton must show:
@@ -185,6 +205,8 @@ The colored debug skeleton must show:
 - both hands staying on the handle;
 - one continuous sword arc;
 - plausible center-of-mass transfer;
+- center of pressure remaining inside the usable support region unless a deliberate loss of balance is authored;
+- physically plausible left/right foot load transfer during the power phase;
 - no abrupt weapon stop without either braking time or collision;
 - no unexplained direction reversal;
 - no unresolved arm/arm or arm/torso depth ambiguity at crossings.
