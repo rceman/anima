@@ -5,12 +5,37 @@ import json
 from pathlib import Path
 
 from .analysis import analyze_motion
+from .authoring import build_clip_from_recipe_files
 from .compiler import compile_motion
 from .constraints import normalize_clip, validate_clip
 from .model import MotionClip
 from .post_validate import validate_rendered_sheet
 from .retime_apply import auto_retime
 from .timeline import densify_clip
+
+
+
+def _cmd_author(args: argparse.Namespace) -> int:
+    clip = build_clip_from_recipe_files(
+        args.rest_motion,
+        args.recipe,
+    )
+    if args.normalize:
+        clip = normalize_clip(clip)
+
+    clip.save(args.output)
+    print(f"authored: {args.output}")
+
+    if not args.validate:
+        return 0
+
+    report = validate_clip(clip)
+    payload = {
+        "ok": report.ok,
+        "issues": [issue.__dict__ for issue in report.issues],
+    }
+    print(json.dumps(payload, indent=2))
+    return 0 if report.ok else 2
 
 
 def _cmd_compile(args: argparse.Namespace) -> int:
@@ -113,6 +138,30 @@ def build_parser() -> argparse.ArgumentParser:
         description="Deterministic 2D motion compiler",
     )
     sub = parser.add_subparsers(dest="command", required=True)
+
+
+    author_cmd = sub.add_parser(
+        "author",
+        help="Build a full motion clip from a compact parametric pose recipe",
+    )
+    author_cmd.add_argument(
+        "rest_motion",
+        type=Path,
+        help="Motion file whose first frame defines canonical rig geometry",
+    )
+    author_cmd.add_argument("recipe", type=Path)
+    author_cmd.add_argument("--output", "-o", type=Path, required=True)
+    author_cmd.add_argument(
+        "--normalize",
+        action="store_true",
+        help="Solve IK/contacts and rigid geometry before writing output",
+    )
+    author_cmd.add_argument(
+        "--validate",
+        action="store_true",
+        help="Validate the authored output and return failure on geometry issues",
+    )
+    author_cmd.set_defaults(func=_cmd_author)
 
     compile_cmd = sub.add_parser(
         "compile",
