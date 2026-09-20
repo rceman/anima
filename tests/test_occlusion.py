@@ -73,3 +73,25 @@ def test_crossing_arms_with_explicit_order_are_unambiguous():
     )
     assert requirement["behind"] == "left_arm"
     assert requirement["front"] == "right_arm"
+
+
+def test_arm_torso_overlap_detects_point_inside_slanted_torso():
+    frame = crossing_frame(["torso", "left_arm"])
+    frame.joints["shoulder_l"] = Vec2(52, 52)
+    frame.joints["shoulder_r"] = Vec2(78, 58)
+    frame.joints["hip_r"] = Vec2(72, 82)
+    frame.joints["hip_l"] = Vec2(56, 78)
+    frame.joints["elbow_l"] = Vec2(64, 64)
+    frame.joints["hand_l"] = Vec2(66, 70)
+
+    clip = MotionClip(128, 128, 108, 12, "test", [frame])
+    report = analyze_occlusion(clip)
+
+    overlap = [
+        item
+        for item in report["frames"][0]["requirements"]
+        if item["reason"] == "arm_torso_overlap"
+        and item["layers"][0] == "left_arm"
+    ]
+    assert overlap
+    assert overlap[0]["explicit"] is True
