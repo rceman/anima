@@ -13,6 +13,7 @@ from .resample import resample_clip
 from .retime_apply import auto_retime
 from .summary import build_diagnostics_summary
 from .timeline import densify_clip
+from .transforms import build_transform_manifest
 
 
 def compile_motion(
@@ -110,6 +111,15 @@ def compile_motion(
     )
 
     export_render_set(normalized, output, scale=scale)
+    (output / "transforms.json").write_text(
+        json.dumps(
+            build_transform_manifest(normalized),
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     (output / "animation_manifest.json").write_text(
         json.dumps(
             build_animation_manifest(normalized, columns=4),
