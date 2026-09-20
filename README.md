@@ -254,6 +254,35 @@ Feet are not represented by one boolean anymore:
 
 This lets a sword swing keep a front foot planted while the rear foot pivots without ever making the character appear to float.
 
+### Time-based pose resampling
+
+Reference-video timing and spritesheet pose density are separate concerns. A
+reference may have only a handful of semantic key poses while the final guide
+sheet benefits from 12–20 poses.
+
+Anima can sample the continuous Hermite motion directly in **real time**:
+
+```bash
+anima resample examples/twohand_sword_slash/motion.json \
+  --fps 16 \
+  --output /tmp/sword.sampled.json \
+  --normalize
+```
+
+Or resample directly during compilation:
+
+```bash
+anima compile examples/twohand_sword_slash/motion.json \
+  --output /tmp/anima-sword-16fps \
+  --sample-fps 16
+```
+
+The requested FPS is a sampling density, not permission to move semantic
+events. Authored timestamps are injected into the sample grid exactly, so
+impact, contact changes, true stop poses, labels and explicit semantic z-order
+are never lost between regular sample ticks. Frame-indexed impact metadata is
+remapped to the new sampled frame automatically.
+
 ### Physics-informed timing
 
 `timing_recommendation.json` converts dynamic-limit violations back into animation timing suggestions. It reports:
@@ -359,11 +388,14 @@ Implemented:
 - weapon inertia / torque / translational force / energy / follow-through diagnostics;
 - body COM, momentum, acceleration, jerk, support, friction and GRF diagnostics;
 - combined person+weapon COM and ground-force diagnostics;
+- planar body+weapon angular momentum and angular-momentum-rate diagnostics;
+- dynamic center-of-pressure / ZMP estimate and per-foot vertical load distribution;
 - anatomical joint-limit diagnostics;
 - two-handed arm/shoulder load estimates;
 - physics policy with optional strict compile gate;
 - global and phase-local physics-informed retiming recommendations;
 - automatic phase-local retiming with explicit timestamps;
+- real-time Hermite resampling that preserves authored semantic key times;
 - compact diagnostics summary for fast local review;
 - generated ImageGen handoff prompt;
 - CLI;
