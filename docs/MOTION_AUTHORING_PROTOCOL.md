@@ -248,6 +248,34 @@ Provide ImageGen with:
 
 The final art may redraw pixels and silhouettes, but it must not invent motion.
 
+## 7a. Optional bind-piece path
+
+Before redrawing every frame, test whether the character can be represented as
+rigid reusable pieces.
+
+Anima exports `piece_manifest.json`, `bind_pieces/`, `transforms.json`, and a
+deterministic `cutout_preview.gif`. The bind-piece contract uses one full-canvas
+transparent PNG for each of:
+
+```text
+upper_arm_l  forearm_l
+upper_arm_r  forearm_r
+thigh_l      shin_l
+thigh_r      shin_r
+torso        head
+weapon
+```
+
+Paint these pieces once from the master character, preserving their exact bind
+coordinates. Then pass the directory to `anima cutout --pieces ...` or
+`anima compile --pieces ...`.
+
+Use `rig_review_preview.gif` to compare the mathematical skeleton, thick
+control mannequin, and transformed cutout simultaneously. If the cutout reads
+well, it gives the strongest possible frame-to-frame identity consistency. If
+the motion needs deformation that rigid pieces cannot express, keep the cutout
+as a geometry reference and use the per-frame redraw path for final art.
+
 ## 8. Validate the generated result
 
 After ImageGen returns a sheet:
@@ -255,7 +283,8 @@ After ImageGen returns a sheet:
 ```bash
 anima verify-render output/motion.normalized.json final_sheet.png \
   --columns 4 \
-  --output output/render_validation.json
+  --output output/render_validation.json \
+  --correction-prompt output/imagegen_correction.txt
 ```
 
 The first validator checks:
