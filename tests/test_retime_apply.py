@@ -104,3 +104,56 @@ def test_auto_retime_does_not_ignore_small_scale_when_physics_is_hard(monkeypatc
 
     assert retimed.times_s()[-1] > clip.times_s()[-1]
     assert history[0]["physics_ok"] is False
+
+
+def test_auto_retime_stops_when_failure_is_not_retimeable(monkeypatch):
+    clip = MotionClip(
+        width=128,
+        height=128,
+        ground_y=108,
+        fps=10,
+        rig="test",
+        frames=[
+            pose(0, 10, "ready"),
+            pose(1, 20, "hold"),
+        ],
+    )
+
+    def fake_analyze(current):
+        return {
+            "physics_validation": {
+                "ok": False,
+                "counts": {"hard": 1},
+            },
+            "timing_recommendation": {
+                "recommended": {"global_time_scale": 1.0},
+                "segments": [
+                    {
+                        "from_frame": 0,
+                        "to_frame": 1,
+                        "recommended_time_scale": 1.0,
+                    }
+                ],
+                "reasons": [
+                    {
+                        "code": "torque_not_retimeable",
+                        "retime_possible": False,
+                        "time_scale": 1.0,
+                    }
+                ],
+            },
+        }
+
+    monkeypatch.setattr(
+        "anima.retime_apply.analyze_motion",
+        fake_analyze,
+    )
+
+    retimed, history = auto_retime(
+        clip,
+        iterations=5,
+    )
+
+    assert retimed.times_s() == clip.times_s()
+    assert history[0]["retime_blocked"] is True
+    assert len(history) == 2  # first attempt + final analysis
