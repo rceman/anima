@@ -52,6 +52,11 @@ def test_parametric_recipe_builds_full_pose_without_authored_elbows():
         label="windup",
         time_s=0.2,
         layer_order=["left_arm", "torso", "right_arm"],
+        reference={
+            "kind": "video",
+            "source_time_s": 1.25,
+            "confidence": 0.9,
+        },
     )
 
     pose = author.frame(recipe)
@@ -62,6 +67,8 @@ def test_parametric_recipe_builds_full_pose_without_authored_elbows():
     assert "elbow_r" in pose.ik_poles
     assert pose.time_s == 0.2
     assert pose.layer_order == ["left_arm", "torso", "right_arm"]
+    assert pose.reference["kind"] == "video"
+    assert pose.reference["source_time_s"] == 1.25
 
 
 def test_parametric_clip_normalizes_to_valid_fixed_geometry():
