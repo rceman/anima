@@ -95,6 +95,10 @@ def build_diagnostics_summary(
             ),
         },
         "weapon": {
+            "max_tip_speed_m_s": _max(
+                weapon_frames,
+                "tip_speed_m_s",
+            ),
             "max_angular_velocity_deg_s": _max_abs(
                 weapon_frames,
                 "angular_velocity_deg_s",
