@@ -13,7 +13,9 @@ GROUND: preserve the single ground baseline and all planted foot contacts exactl
 
 AUTHORITY RULES:
 - The control spritesheet is authoritative for pose, position, proportions, hand placement, sword direction, and timing order.
-- If a semantic body-parts sheet is supplied, use it only to disambiguate which pixels belong to the left/right arms, left/right legs, torso/head, and sword. Its colors are labels, not final character colors.
+- If a semantic body-parts sheet is supplied, use it to disambiguate which pixels belong to the left/right arms, left/right legs, torso/head, and sword. Its colors are labels, not final character colors.
+- Semantic layer order is authoritative for occlusion. When an arm, torso, leg, head, or weapon crosses another part, preserve which part is behind and which part is in front in that panel. Never swap left/right limb depth between frames unless the supplied semantic guides do so.
+- If transparent per-part layer masks are supplied, treat them as additional geometry/occlusion constraints rather than as appearance references.
 - The separate master-character image is authoritative for appearance, clothing, palette, and pixel-art style.
 - Do not invent or reinterpret poses.
 - Every panel depicts exactly the same character at exactly the same scale.
