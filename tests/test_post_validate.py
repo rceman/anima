@@ -61,3 +61,35 @@ def test_shifted_render_is_rejected_by_pose_mask(tmp_path: Path):
 
     assert not report["ok"]
     assert "pose_mask_miss" in first_codes
+
+
+def test_per_frame_background_drift_is_rejected(tmp_path: Path):
+    clip = MotionClip.load("examples/twohand_sword_slash/motion.json")
+    clip = normalize_clip(densify_clip(clip))
+    export_render_set(clip, tmp_path, scale=1)
+
+    source = Image.open(tmp_path / "control_sheet.png").convert("RGB")
+    changed = source.copy()
+    frame = source.crop((128, 0, 256, 128))
+    pixels = frame.load()
+    old_bg = frame.getpixel((0, 0))
+    new_bg = (
+        min(255, old_bg[0] + 30),
+        min(255, old_bg[1] + 30),
+        min(255, old_bg[2] + 30),
+    )
+    for y in range(128):
+        for x in range(128):
+            if pixels[x, y] == old_bg:
+                pixels[x, y] = new_bg
+    changed.paste(frame, (128, 0))
+
+    path = tmp_path / "background_drift.png"
+    changed.save(path)
+    report = validate_rendered_sheet(path, clip, columns=4)
+
+    frame1_codes = {
+        issue["code"]
+        for issue in report["frames"][1]["issues"]
+    }
+    assert "background_drift" in frame1_codes
