@@ -46,6 +46,25 @@ def compile_motion(
         )
 
     normalized.save(output / "motion.normalized.json")
+    (output / "reference_map.json").write_text(
+        json.dumps(
+            {
+                "poses": [
+                    {
+                        "frame": frame.frame,
+                        "time_s": frame.time_s,
+                        "label": frame.label,
+                        "reference": frame.reference,
+                    }
+                    for frame in normalized.frames
+                    if frame.reference
+                ]
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     report = validate_clip(normalized)
     report_json = {
