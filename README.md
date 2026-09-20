@@ -367,7 +367,7 @@ anima compile motion.json \
   --output /tmp/anima-painted
 ```
 
-Each painted piece remains a full {128}x{128} transparent canvas in bind
+Each painted piece remains a full 128x128 transparent canvas in bind
 coordinates. Anima uses nearest-neighbor affine transforms; it never asks an
 image model to redraw that piece per frame. `piecegen_prompt.txt` contains the
 painting contract for producing a pack from a master character.
