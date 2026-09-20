@@ -71,6 +71,7 @@ class PoseRecipe:
     time_s: float | None = None
     kinematic_stop: bool = False
     layer_order: list[str] = field(default_factory=list)
+    reference: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PoseRecipe":
@@ -101,6 +102,7 @@ class PoseRecipe:
             ),
             kinematic_stop=bool(data.get("kinematic_stop", False)),
             layer_order=list(data.get("layer_order", [])),
+            reference=dict(data.get("reference", {})),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -133,6 +135,8 @@ class PoseRecipe:
             out["kinematic_stop"] = True
         if self.layer_order:
             out["layer_order"] = list(self.layer_order)
+        if self.reference:
+            out["reference"] = dict(self.reference)
         return out
 
 
@@ -264,6 +268,7 @@ class ParametricAuthor:
             time_s=recipe.time_s,
             kinematic_stop=recipe.kinematic_stop,
             layer_order=list(recipe.layer_order),
+            reference=dict(recipe.reference),
         )
 
     def clip(
